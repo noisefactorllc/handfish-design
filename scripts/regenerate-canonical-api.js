@@ -28,6 +28,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import { execSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
@@ -47,6 +48,29 @@ if (!existsSync(inputPath)) {
 }
 
 const data = JSON.parse(readFileSync(inputPath, 'utf8'))
+
+// The JSON itself is deterministic (no timestamps, no commit hash). Recover
+// provenance from the surrounding git checkout: the last commit that touched
+// the JSON file is when it was last regenerated, and the timestamp of THIS
+// run is when this canonical-md was rebuilt.
+const handfishRoot = dirname(dirname(inputPath))
+function gitInfoForJson() {
+    try {
+        const sha = execSync(`git log -1 --format=%H -- ${JSON.stringify(inputPath)}`, {
+            cwd: handfishRoot, encoding: 'utf8',
+        }).trim()
+        const date = execSync(`git log -1 --format=%cI -- ${JSON.stringify(inputPath)}`, {
+            cwd: handfishRoot, encoding: 'utf8',
+        }).trim()
+        return { sha, shortSha: sha.slice(0, 8), date }
+    } catch {
+        return { sha: 'unknown', shortSha: 'unknown', date: 'unknown' }
+    }
+}
+const provenance = {
+    handfishCommit: gitInfoForJson(),
+    regeneratedAt: new Date().toISOString(),
+}
 
 // ----- Helpers --------------------------------------------------------------
 
@@ -193,8 +217,8 @@ out.push('')
 out.push('## Provenance')
 out.push('')
 out.push(`- **handfish version:** ${data.meta.handfish_version}`)
-out.push(`- **handfish commit:** \`${data.meta.handfish_commit}\`${data.meta.handfish_dirty ? ' _(working tree was dirty when generated)_' : ''}`)
-out.push(`- **Generated:** ${data.meta.generated_at}`)
+out.push(`- **handfish commit (last touched the JSON):** \`${provenance.handfishCommit.shortSha}\` (${provenance.handfishCommit.date})`)
+out.push(`- **This file regenerated:** ${provenance.regeneratedAt}`)
 out.push(`- **Generator:** \`handfish/scripts/generate-component-api.js\` → JSON → \`handfish-design/scripts/regenerate-canonical-api.js\` → this file`)
 out.push('')
 out.push('When this file disagrees with `components.md` or another reference, **this file wins** — components.md may have drifted; this is mechanically derived from source.')
@@ -242,4 +266,4 @@ console.log(`  ${data.classes.length} non-element classes`)
 console.log(`  ${data.toast_helpers.exports.length} toast helpers`)
 console.log(`  ${Object.keys(data.utility_modules).length} utility modules`)
 console.log(`  ${data.themes.count_files} theme files / ${data.themes.count_data_theme_values} data-theme values`)
-console.log(`  Source: handfish ${data.meta.handfish_version} @ ${data.meta.handfish_commit}`)
+console.log(`  Source: handfish ${data.meta.handfish_version} @ ${provenance.handfishCommit.shortSha}`)

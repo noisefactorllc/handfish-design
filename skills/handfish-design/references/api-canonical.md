@@ -5,8 +5,8 @@
 ## Provenance
 
 - **handfish version:** 0.10
-- **handfish commit:** `45042526` _(working tree was dirty when generated)_
-- **Generated:** 2026-05-10T22:48:23.095Z
+- **handfish commit (last touched the JSON):** `7e4fa9a8` (2026-05-10T18:46:51-06:00)
+- **This file regenerated:** 2026-05-11T00:48:02.390Z
 - **Generator:** `handfish/scripts/generate-component-api.js` → JSON → `handfish-design/scripts/regenerate-canonical-api.js` → this file
 
 When this file disagrees with `components.md` or another reference, **this file wins** — components.md may have drifted; this is mechanically derived from source.
