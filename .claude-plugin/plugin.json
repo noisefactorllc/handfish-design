@@ -1,0 +1,20 @@
+{
+  "name": "handfish-design",
+  "version": "1.0.0",
+  "description": "Expert guidance for building web applications with the Handfish Design System — 14 Web Components, the AboutDialog class, --hf-* design tokens, OKLCH color palette, light-DOM style injection, and 20 named themes. Teaches conventions, prevents common pitfalls, and guides component integration.",
+  "author": {
+    "name": "Noise Factor LLC"
+  },
+  "license": "MIT",
+  "keywords": [
+    "design-system",
+    "web-components",
+    "frontend",
+    "ui",
+    "handfish",
+    "noisemaker",
+    "noisedeck",
+    "oklch",
+    "css-variables"
+  ]
+}

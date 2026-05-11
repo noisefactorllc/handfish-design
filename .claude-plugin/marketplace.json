@@ -1,0 +1,17 @@
+{
+  "name": "noisefactor",
+  "owner": {
+    "name": "Noise Factor LLC"
+  },
+  "metadata": {
+    "description": "Claude Code plugins from Noise Factor — battle-tested tools for infrastructure operations and frontend design system work"
+  },
+  "plugins": [
+    {
+      "name": "handfish-design",
+      "source": "./",
+      "description": "Expert guidance for building web applications with the Handfish Design System",
+      "version": "1.0.0"
+    }
+  ]
+}
