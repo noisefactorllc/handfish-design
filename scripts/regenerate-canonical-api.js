@@ -74,18 +74,6 @@ const provenance = {
 
 // ----- Helpers --------------------------------------------------------------
 
-function attrTable(attrs, formAssociated) {
-    if (!attrs || attrs.length === 0) {
-        return '_No `observedAttributes`._\n'
-    }
-    const rows = attrs.map(a => `| \`${a}\` |`)
-    let table = ''
-    table += '| Observed attribute |\n'
-    table += '|--------------------|\n'
-    table += rows.join('\n') + '\n'
-    return table
-}
-
 function eventList(events) {
     if (!events || events.length === 0) {
         return '_No events dispatched._\n'
@@ -93,7 +81,7 @@ function eventList(events) {
     return events.map(e => {
         let line = `- \`${e.name}\` — ${e.type}`
         if (e.detailKeys && e.detailKeys.length > 0) {
-            line += `, \`event.detail = { ${e.detailKeys.map(k => `${k}`).join(', ')} }\``
+            line += `, \`event.detail = { ${e.detailKeys.join(', ')} }\``
         } else if (e.type === 'CustomEvent') {
             line += ` (detail not statically extractable; check source)`
         } else {
@@ -125,7 +113,7 @@ function elementSection(c) {
     }
     lines.push('**Observed attributes:**')
     lines.push('')
-    if (c.observedAttributes.length === 0) {
+    if (!c.observedAttributes || c.observedAttributes.length === 0) {
         lines.push('_(none)_')
     } else {
         lines.push(c.observedAttributes.map(a => `- \`${a}\``).join('\n'))
