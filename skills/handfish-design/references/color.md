@@ -162,9 +162,7 @@ Rotates hue 180° in OKLCH, preserving lightness and chroma. Often more visually
 ### Get the OKLCH value behind a `--hf-*` token
 
 ```js
-import { parseHex, rgbToOklch } from 'handfish'
-
-const hex = getComputedStyle(document.documentElement).getPropertyValue('--hf-accent-3')
+const oklchValue = getComputedStyle(document.documentElement).getPropertyValue('--hf-accent-3')
 // → "oklch(79.5% 0.103 264)"
 ```
 
