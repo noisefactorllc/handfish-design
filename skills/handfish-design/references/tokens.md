@@ -114,6 +114,19 @@ Note the size oddity: `--hf-radius-md` (6px) is *smaller* than the unsuffixed `-
 
 Themes can override shadow opacity. The dark-mode defaults assume a black backdrop; lighter themes typically reduce alpha.
 
+## LED readout colors (industrial)
+
+`<led-matrix>` paints to a `<canvas>`, so it reads these as concrete color values at paint time (each has a built-in fallback if the token is absent):
+
+```
+--hf-led-bg    /* readout background (near-black) */
+--hf-led       /* lit pixel (cyan) */
+--hf-led-dim   /* dim pixel / label */
+--hf-led-hi    /* highlight pixel (near-white cyan) */
+```
+
+Override them (globally or in a scope) to reskin the readout — e.g., an amber-phosphor variant. These are the only tokens read from a canvas rather than resolved by the cascade, so a theme that wants to restyle the LED look must define them explicitly.
+
 ## Typography
 
 ```
@@ -142,6 +155,8 @@ Themes can override shadow opacity. The dark-mode defaults assume a black backdr
 --hf-tracking-normal  /* 0 */
 --hf-tracking-wide    /* 0.05em — used for labels, all-caps */
 ```
+
+The **industrial** design language (opt-in: `industrial.css` + `data-language="industrial"` on `<html>`) overrides `--hf-font-family` with Atkinson Hyperlegible — a more utilitarian, instrument-panel typeface. It's a typeface layer, orthogonal to the color theme; see `theming.md` and `setup.md`.
 
 ## Controls (form elements)
 

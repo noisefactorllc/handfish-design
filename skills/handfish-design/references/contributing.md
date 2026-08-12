@@ -9,17 +9,19 @@ handfish/
 ├── src/
 │   ├── index.js                  # All public exports — every new component/utility lands here
 │   ├── styles/
-│   │   ├── tokens.css            # The --hf-* design tokens, fonts, light/dark defaults
-│   │   ├── index.css             # Main stylesheet (imports tokens + base styles + utilities)
+│   │   ├── tokens.css            # The --hf-* design tokens, fonts (incl. Material Symbols icon @font-face), light/dark defaults
+│   │   ├── index.css             # Main stylesheet (imports tokens + forms + tags-and-tabs + menus-and-toolbars + dialogs)
 │   │   ├── forms.css             # Form control base styles
 │   │   ├── dialogs.css           # <dialog> base styles
-│   │   ├── menus-and-toolbars.css
+│   │   ├── menus-and-toolbars.css # Menu/toolbar chrome + .hf-icon-btn (used by <menu-bar>, <tempo-bar>)
 │   │   ├── tags-and-tabs.css
+│   │   ├── industrial.css        # Opt-in "industrial" typeface language (NOT imported by index.css)
 │   │   └── themes/               # 17 theme files: brutalist, corporate, cyberpunk, etc.
 │   ├── fonts/                    # Nunito, Noto Sans Mono, Material Symbols metadata
 │   ├── utils/
 │   │   ├── colorConversions.js   # RGB / HSV / OkLab / OKLCH / hex
 │   │   ├── escapeHandler.js      # Stack-based Escape key handler
+│   │   ├── shortcuts.js          # Platform-aware keyboard-shortcut formatting (formatShortcut, isMacPlatform)
 │   │   └── tooltips.js           # data-title hover tooltips
 │   └── components/
 │       └── <tag-name>/

@@ -84,7 +84,7 @@ This is the cleanest way to react to component state from app CSS.
 
 ### `!important`
 
-The only legitimate uses of `!important` in handfish itself are the three declarations in the `prefers-reduced-motion` block of `index.css` (forcing `animation-duration`, `animation-iteration-count`, and `transition-duration` to ~0 when the user prefers reduced motion). Don't add new `!important` rules in app CSS that targets handfish components. If your override isn't winning, it's because the selector isn't specific enough. `!important`:
+The legitimate uses of `!important` inside handfish are a few narrow, deliberate cases: the three declarations in the `prefers-reduced-motion` block of `index.css` (forcing `animation-duration`, `animation-iteration-count`, and `transition-duration` to ~0 when the user prefers reduced motion), the `[hidden]` visibility guards on `<menu-bar>` and `<seance-dialog>` (so an app `display` rule at any specificity can't resurrect a menu/dialog the component's JS has hidden), and `<code-editor>`'s reset of its native `<textarea>`'s `border` / `outline` / `box-shadow`. Each is a place where the component must win unconditionally. Don't add new `!important` rules in app CSS that targets handfish components. If your override isn't winning, it's because the selector isn't specific enough. `!important`:
 
 - Makes the next person's override impossible (you have to outscore `!important` with another `!important`, which becomes a never-ending arms race).
 - Hides selector specificity bugs that would be obvious otherwise.
@@ -131,6 +131,27 @@ The exception is dynamic values that can only exist at runtime — a color the u
 `#a5b8ff`, `rgba(255, 255, 255, 0.08)`, `padding: 16px`, `border-radius: 8px` — none of these belong in handfish-aware code. Replace each with the corresponding `--hf-*` token. If no token fits, that's the cue to add one (see `tokens.md` → "Adding a new token") rather than inline.
 
 The exception is values inside CSS that genuinely must be primitives — `0`, `100%`, `1fr`, `auto`. These are layout primitives, not design values, and they don't have token equivalents.
+
+## Logical properties, not physical (RTL-readiness)
+
+Handfish components live in the light DOM and inherit `dir` from `<html>`, so an app can go right-to-left with a single `dir="rtl"`. That only pays off if the CSS around them flips too. When you write app CSS or override component styles, reach for CSS **logical** properties instead of physical left/right ones — they resolve against text direction and flip for free in RTL:
+
+| Physical (fixed) | Logical (flips with direction) |
+|------------------|-------------------------------|
+| `margin-left` / `margin-right` | `margin-inline-start` / `margin-inline-end` |
+| `padding-left` / `padding-right` | `padding-inline-start` / `padding-inline-end` |
+| `border-left` / `border-right` | `border-inline-start` / `border-inline-end` |
+| `left` / `right` (offsets) | `inset-inline-start` / `inset-inline-end` |
+| `text-align: left` / `right` | `text-align: start` / `end` |
+
+Handfish's own components (`<menu-bar>`, and the `start`/`end` alignment options on `<dropdown-menu>`) are already written this way. Two handfish utility classes cover the most common override — a divider border that flips:
+
+```css
+.hf-border-inline-start { border-inline-start: var(--hf-border-width) solid var(--hf-border); }
+.hf-border-inline-end   { border-inline-end:   var(--hf-border-width) solid var(--hf-border); }
+```
+
+Physical properties aren't banned — sometimes you genuinely mean "the left edge regardless of direction" (a fixed hardware layout, a diagram). But default to logical; reach for physical only when the position is intentionally direction-independent. See `references/i18n.md` for the full bidi story, including isolating dynamic user-supplied strings with `<bdi>`.
 
 ## Verifying styling work
 

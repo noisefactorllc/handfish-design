@@ -156,7 +156,7 @@ function toastSection(t) {
         lines.push(`- \`${name}\`${dur}`)
     }
     lines.push('')
-    lines.push('Real options for `showToast(msg, opts)`: `{ type, duration, dismissible, showProgress }`. There is no per-call `icon` option.')
+    lines.push('Real options for `showToast(msg, opts)`: `{ type, duration, dismissible, showProgress, dismissLabel }`. `dismissLabel` (default `\'Dismiss\'`) sets the close button\'s `aria-label` — override it to localize. There is no per-call `icon` option.')
     lines.push('')
     return lines.join('\n')
 }

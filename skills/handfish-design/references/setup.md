@@ -62,13 +62,36 @@ That's the entire setup. Importing a class (e.g., `ToggleSwitch`) registers its 
 
 `styles/index.css` is the recommended single import. It re-imports:
 
-- `tokens.css` — every `--hf-*` variable plus light/dark mode + Nunito + Noto Sans Mono `@font-face` declarations
+- `tokens.css` — every `--hf-*` variable plus light/dark mode + the Nunito, Noto Sans Mono, **and Material Symbols** `@font-face` declarations, and the `.hf-icon` base mapping
 - `forms.css` — base form control styles
 - `tags-and-tabs.css` — tag pill and tab styles
-- `menus-and-toolbars.css` — menu and toolbar styles
+- `menus-and-toolbars.css` — menu, toolbar, and `.hf-icon-btn` styles (used by `<menu-bar>` and `<tempo-bar>`)
 - `dialogs.css` — `<dialog>` and modal base styles
 
 If the app only needs tokens (no base/utility styles), import `tokens.css` directly. This is rare — most apps want the utility classes (`.hf-flex`, `.hf-btn`, `.hf-text-bright`, etc.) that come with `index.css`.
+
+`industrial.css` is **not** imported by `index.css` — it's a separate opt-in. It provides the "industrial" **typeface language** (Atkinson Hyperlegible, an instrument-panel alternative to the default Nunito), plus the `.hf-logotype` wordmark and `.hf-topbar` / `.hf-topbar-cluster` chrome. It's orthogonal to the color theme: activate it by setting `data-language="industrial"` on `<html>` and loading the stylesheet. Because it swaps a font, preload the Atkinson Hyperlegible "Blank" placeholder to avoid a flash of fallback text:
+
+```html
+<html data-theme="neutral-dark" data-language="industrial">
+<head>
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="https://fonts.noisefactor.io/fonts/atkinson-hyperlegible/AtkinsonHyperlegible-Blank.woff2">
+    <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/index.css">
+    <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/industrial.css">
+```
+
+The industrial *components* (`<knob-dial>`, `<led-matrix>`, `<tempo-bar>`) do not require this stylesheet — they inject their own styles and work with `index.css` alone. `industrial.css` is only for the typeface + topbar chrome.
+
+## Right-to-left (RTL) apps
+
+Handfish components are bidi-ready: because they live in the light DOM, they inherit `dir` from `<html>`. To run the whole UI right-to-left, set `dir="rtl"` (and the appropriate `lang`) on the root element:
+
+```html
+<html lang="ar" dir="rtl" data-theme="dark">
+```
+
+That single attribute flips every handfish component that uses logical CSS. The app still owns translation and locale — handfish only provides bidi readiness and overridable built-in strings. See `references/i18n.md` for the full story.
 
 ## Selecting a theme at load time
 
@@ -94,7 +117,7 @@ Handfish uses Nunito (UI) and Noto Sans Mono (mono). Both are loaded via `@font-
 
 The `Blank` variants are tiny (~1KB) invisible metric placeholders — they reserve the right space for the real font without blocking render. The real fonts swap in when ready (`font-display: swap`).
 
-For Material Symbols icons (used by `.hf-icon` and `<dropdown-menu>`'s icon attribute), no preload is needed — `index.css` declares the `@font-face` itself.
+For Material Symbols icons (used by `.hf-icon`, `<dropdown-menu>`'s icon attribute, and the industrial components), no preload is needed — the `@font-face` and the `.hf-icon` base mapping live in `tokens.css`, which `index.css` imports first. (They used to live in `index.css`; they were moved so that any à-la-carte CSS subset that includes `tokens.css` still gets real icons.) **Gotcha:** if component icons render as their literal ligature *names* — `touch_app`, `restart_alt`, `palette` — instead of glyphs, it means `tokens.css` (or the `index.css` that imports it) isn't loaded on the page.
 
 ## Common deviations from the default setup
 

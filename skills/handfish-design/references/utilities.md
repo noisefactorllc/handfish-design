@@ -26,7 +26,7 @@ initializeTooltips()
 
 If you forget the `tooltip` class, no tooltip appears even though `data-title` is set — the most common mistake. The class is the trigger; `data-title` is just the message source.
 
-Internally, `initializeTooltips()` registers `mouseover`/`mouseout`/`mousemove`/`focusin`/`focusout` handlers on `document` that all do `event.target.closest('.tooltip')` to find the tooltipped element. A single `<div id="hf-tooltip-layer">` is reused across the page — there's no per-element DOM cost.
+Internally, `initializeTooltips()` registers `pointerover`/`pointerout`/`pointerdown`/`focusin`/`focusout` handlers on `document` (plus `scroll`/`resize` for repositioning) that all do `event.target.closest('.tooltip')` to find the tooltipped element. A single `<div id="hf-tooltip-layer">` is reused across the page — there's no per-element DOM cost.
 
 This is intentionally minimal. Tooltip libraries that wrap each tooltipped element in extra structure don't scale; handfish's approach handles thousands of tooltipped elements with one DOM node and one event listener.
 
@@ -83,7 +83,7 @@ class MyModal extends HTMLElement {
 }
 ```
 
-Only `<dropdown-menu>` registers itself on the escape stack. `<color-picker>` and `AboutDialog` use native `<dialog>` elements, which the browser closes on Escape independently of the stack. So `hasOpenEscapeables()` will return `false` for an open color picker or about dialog — that's the trade-off of leaning on native dialogs. If you need a unified "is anything overlay-y open?" check, treat dialogs separately (e.g., `document.querySelectorAll('dialog[open]').length > 0 || hasOpenEscapeables()`).
+The built-in components that register on the escape stack are `<dropdown-menu>`, `<menu-bar>`, `<seance-dialog>`, and `<join-session-dialog>`. `<color-picker>` and `AboutDialog` instead lean on native `<dialog>` elements, which the browser closes on Escape independently of the stack — so `hasOpenEscapeables()` returns `false` for an open color picker or about dialog even though Escape still closes them. (The two collaboration dialogs register on the stack *and* use a native `<dialog>`.) If you need a unified "is anything overlay-y open?" check, count native dialogs separately: `document.querySelectorAll('dialog[open]').length > 0 || hasOpenEscapeables()`.
 
 ### How the stack interacts with `<dropdown-menu>`
 
@@ -150,12 +150,15 @@ Toasts appear in the bottom-right corner and auto-dismiss. They stack — multip
 
 ```js
 showToast('Hello', {
-    type: 'info',         // 'success' | 'error' | 'warning' | 'info' (default 'info')
-    duration: 5000,       // ms before auto-dismiss; 0 = sticky (manual close only)
-    dismissible: true,    // show the X button; default true
-    showProgress: false,  // render a draining progress bar; default false
+    type: 'info',           // 'success' | 'error' | 'warning' | 'info' (default 'info')
+    duration: 5000,         // ms before auto-dismiss; 0 = sticky (manual close only)
+    dismissible: true,      // show the X button; default true
+    showProgress: false,    // render a draining progress bar; default false
+    dismissLabel: 'Dismiss',// aria-label for the close button; override to localize
 })
 ```
+
+`dismissLabel` (default `'Dismiss'`) sets the `aria-label` on the close button. It's the one user-facing string a toast exposes — pass a translated value in a non-English UI so the dismiss control is named correctly for screen readers. See `references/i18n.md`.
 
 `duration: 0` produces a sticky toast that requires the user to close it via the X button (provided `dismissible` is true). Use sparingly — sticky toasts that pile up are worse than no toasts at all. Reserve them for genuinely persistent state (e.g., "you're offline").
 
@@ -173,3 +176,27 @@ Toasts are for transient, advisory, dismissable feedback. If the message is impo
 ### Toast and screen readers
 
 The toast layer is a polite live region — assistive tech announces toast contents when they appear. Keep the messages short and meaningful for that reason; long toast text is annoying for everyone but especially for screen reader users.
+
+## Keyboard-shortcut formatting: `formatShortcut` / `isMacPlatform`
+
+Menu-style UIs (notably `<menu-bar>`) show shortcut hints as plain text. Rather than branch on the platform yourself, write one `Mod+…` spec and let handfish render it correctly per platform:
+
+```js
+import { formatShortcut, isMacPlatform } from 'handfish'
+
+formatShortcut('Mod+S')          // '⌘S' on Mac, 'Ctrl+S' elsewhere
+formatShortcut('Mod+Shift+Z')    // '⇧⌘Z' on Mac, 'Ctrl+Shift+Z' elsewhere
+formatShortcut('Alt+Enter')      // '⌥Enter' on Mac, 'Alt+Enter' elsewhere
+
+if (isMacPlatform()) { /* … */ }
+```
+
+Rules:
+
+- **`Mod`** is the meta key: ⌘ on Mac, `Ctrl` everywhere else. (`Cmd`/`Meta`/`Ctrl`/`Control`/`Alt`/`Option`/`Shift` are also recognized, case-insensitively.)
+- On Mac, modifiers render as glyphs joined in canonical `⌃⌥⇧⌘` order with no separator; elsewhere they keep the given order joined with `+`.
+- Single-character keys are upper-cased; longer key names (`F1`, `Space`, `Escape`, `Enter`) pass through unchanged.
+- `formatShortcut(spec, { mac: true|false })` forces a platform — handy for tests or previewing the other platform's rendering.
+- `isMacPlatform(nav?)` accepts an injectable `Navigator` for testing; it defaults to the global `navigator`.
+
+Use it to build the `shortcut` fields in a `<menu-bar>` config so a single spec stays correct on every platform.

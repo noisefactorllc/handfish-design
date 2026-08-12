@@ -1,7 +1,7 @@
 {
   "name": "handfish-design",
-  "version": "1.0.0",
-  "description": "Expert guidance for building web applications with the Handfish Design System — 14 Web Components, the AboutDialog class, --hf-* design tokens, OKLCH color palette, light-DOM style injection, and 20 named themes. Teaches conventions, prevents common pitfalls, and guides component integration.",
+  "version": "1.1.0",
+  "description": "Expert guidance for building web applications with the Handfish Design System — 21 Web Components (including the industrial knob/LED/tempo controls, a config-driven menu bar, and the Seance collaboration set), the AboutDialog class, --hf-* design tokens, OKLCH color palette, light-DOM style injection, 20 named themes, an industrial typeface language, and bidi/RTL readiness. Teaches conventions, prevents common pitfalls, and guides component integration.",
   "author": {
     "name": "Noise Factor LLC"
   },

@@ -1,6 +1,8 @@
 # Components
 
-The handfish catalog: 14 custom elements plus a small set of helper APIs (toasts, tooltips, escape handler, About dialog). Each entry covers the tag (or import), the attributes you'll set, the events you'll listen for, and form-association behavior.
+The handfish catalog: 21 custom elements plus a small set of helper APIs (toasts, tooltips, escape handler, keyboard-shortcut formatting, About dialog). Each entry covers the tag (or import), the attributes you'll set, the events you'll listen for, and form-association behavior.
+
+> **Localizing built-in strings:** several components ship English defaults for their built-in UI text (`<select-dropdown>`'s "Select…" placeholder, `<justify-button-group>`'s button tooltips, `<seance-dialog>`'s collaboration labels, `AboutDialog`'s field labels, the toast dismiss button's `aria-label`). Every one is overridable via an attribute or config option — the app owns translation. See `references/i18n.md` for the full bidi/RTL story and the per-component override attributes gathered in one place.
 
 > **Authoritative source:** `api-canonical.md` (sibling file) is mechanically generated from the handfish source on every release. If this file and `api-canonical.md` disagree on an attribute name, event type, event detail keys, or form-association status, **`api-canonical.md` wins** — this file is hand-written prose and may drift; that one cannot.
 >
@@ -113,6 +115,13 @@ General-purpose dropdown for selecting one of N options. Supports keyboard navig
 | `value` | string | Currently selected option's value |
 | `disabled` | boolean | |
 | `name` | string | |
+| `placeholder` | string | Trigger text before a selection is made. Default `"Select..."` |
+| `empty-text` | string | Shown in the dialog when there are no options. Default `"no options available"` |
+| `dialog-title` | string | Heading of the option-picker dialog. Default `"select"` (or derived from a control label) |
+| `dialog-label` | string | `aria-label` for the dialog. Default `"select option"` |
+| `close-label` | string | `aria-label` for the dialog's close button. Default `"close"` |
+
+The last five attributes exist so the built-in English strings can be localized — set them to translated text for non-English UIs. See `references/i18n.md`.
 
 Events: `change` — plain `Event`; read `el.value`.
 
@@ -149,7 +158,7 @@ Menu with a button trigger and a list of items. Two modes:
 |-----------|------|-------|
 | `label` | string | Button text |
 | `icon` | string | Material Symbols icon name (e.g., `palette`, `menu`) |
-| `align` | `left` \| `right` | Where the menu opens |
+| `align` | `left` \| `right` \| `start` \| `end` | Where the menu opens. `left`/`right` are physical (fixed regardless of direction); `start`/`end` are **logical** — they flip with text direction. Prefer `start`/`end` for RTL-ready UIs. Default `left`. |
 | `value` | string | Selected item value (selectable mode only) |
 | `disabled` | boolean | |
 
@@ -320,6 +329,11 @@ Three hardcoded buttons for `left` / `center` / `right` alignment, with Material
 | `value` | `left` \| `center` \| `right` | Selected option (default `center`) |
 | `disabled` | boolean | |
 | `name` | string | |
+| `left-label` | string | `title`/tooltip for the left button. Default `"Align left"` |
+| `center-label` | string | `title`/tooltip for the center button. Default `"Align center"` |
+| `right-label` | string | `title`/tooltip for the right button. Default `"Align right"` |
+
+The three `*-label` attributes localize the buttons' hover/accessible text — the icons and `value` semantics (`left`/`center`/`right`) stay physical and unchanged. Note that in an RTL context the *icons* do not auto-mirror; the values remain literal left/center/right. See `references/i18n.md`.
 
 Events:
 - `change` — plain `Event` on selection. Read `el.value`.
@@ -349,10 +363,20 @@ Observed attributes:
 | `line-numbers` | boolean | Show line-number gutter |
 
 Events:
-- `input` — `CustomEvent` on edit. `event.detail = { value }`.
-- `forcerecompile` — `CustomEvent` when consumers want to signal a recompile (Cmd+Enter / Ctrl+Enter). `event.detail` carries the current value.
+- `input` — `CustomEvent` on every edit. `event.detail = { value, previousValue, edit, source }`. `edit` is `{ start, end, text }` (the splice that was applied); `source` is `'user'` for typing, or the caller-supplied source (default `'api'`) for programmatic edits via `replaceRange`/`applyTextEdit`. Use `source` to keep from echoing your own remote edits back over the wire.
+- `selectionchange` — `CustomEvent` when the caret/selection moves. `event.detail = { start, end, direction, value }`.
+- `forcerecompile` — `CustomEvent` on **Ctrl/Cmd+Enter**. The signal to recompile/run the whole buffer. No `detail`; read `el.value`.
+- `forceevalblock` — `CustomEvent` on **Alt+Enter** (or Ctrl/Cmd+Shift+Enter). The signal to evaluate just the current block/line. No `detail`; the consumer decides what "block" means and reads `el.value` + `getSelectionRange()`.
 
 Editor themes are independent from the page theme — they style syntax tokens specifically. Use `applyEditorTheme(editor, themeName)` to switch one editor, or `applyEditorThemeGlobal(themeName)` to switch every editor on the page. `THEME_KEYS` is the array of available editor theme names; `EDITOR_THEMES` is the keyed object.
+
+**Collaboration API (remote cursors, programmatic edits, line flashing).** `<code-editor>` is transport-agnostic — it owns no networking. A collaboration host drives it through these methods and renders whatever it pushes:
+
+- `replaceRange(start, end, text, opts)` / `applyTextEdit({start, end, text}, opts)` — apply a programmatic edit. Pass `{ emitInput: true, source: 'remote' }` to fire an `input` tagged with your source (so you can ignore it on the round trip); `opts.select` (default `'preserve'`) controls where the caret lands.
+- `getSelectionRange()` / `setSelectionRange(start, end, direction)` — read/write the local selection.
+- `setRemoteSelections([...])`, `setRemoteSelection(sel)`, `clearRemoteSelection(id)`, `clearRemoteSelections()` — render other users' cursors/selections. Each entry is `{ id, label, color, start, end }` — `color` is a CSS color string (default `#5a7fdd`) from which the component derives the cursor/selection palette internally (don't pass a `palette`; it's computed). Each shows as a labeled remote caret.
+- `flashLines(startLine, endLine, { tone })` — briefly highlight a 1-based line range; `tone` is `'eval'` (default), `'error'`, or `'remote'`. Use it to flash an evaluated block or a collaborator's applied edit.
+- `setTokenizer(fn)`, `getTextarea()`, `getDisplay()` — swap the tokenizer at runtime / reach the underlying nodes.
 
 Form-associated: no (custom value handling).
 
@@ -386,6 +410,177 @@ Observed attributes:
 
 API: `magnifier.attach(canvas)` to bind, `magnifier.detach()` to release, `magnifier.active` (boolean getter) to query whether the cursor is currently over the canvas. Show/hide is driven by mouseenter/mouseleave on the bound canvas, not by toggling the `active` attribute. Events not currently dispatched.
 
+## Industrial components
+
+Three instrument-style controls for utilitarian / hardware-like UIs (mixers, sequencers, MIDI tooling). They inject their own styles like every other component and work with `index.css` alone. They read `--hf-*` tokens, so they theme normally; `<led-matrix>` additionally reads a small `--hf-led-*` palette (with built-in fallbacks).
+
+Note the naming: the **industrial "design language"** — an alternate *typeface* layer (Atkinson Hyperlegible) plus the `.hf-topbar` / `.hf-logotype` chrome — is a separate opt-in stylesheet (`industrial.css`) activated with `data-language="industrial"` on `<html>`. That typeface layer is orthogonal to these three components; you can use the components without it and vice-versa. See `references/setup.md`.
+
+### `<knob-dial>` — rotary knob / encoder
+
+```js
+import { KnobDial } from 'handfish'
+```
+
+A rotary knob with two interaction models, chosen per instance (a UI can mix both):
+
+- **absolute** (default) — a bounded pot. Normalized value `0..1`, shown as a value-arc ring, a pointer, and the formatted value inside the cap. Drag / wheel / arrow keys set the value; double-click resets to the default. Map `0..1` to real units with the `format` **property** (a function): `knob.format = v => String(Math.round(40 + v * 140))`.
+- **endless** (`mode="endless"`) — a relative encoder. No fixed value: drag / wheel / arrows emit `turn` (signed detents); the app owns the state and sets the text inside the cap via the `display` attribute/property. The pointer free-rotates; there is no level ring.
+
+Both modes: right-click or long-press emits `learn` (for MIDI-learn); a `cc` attribute shows a CC badge; a `selected` attribute draws the accent highlight; `label` sits below; `disabled` dims and disables.
+
+| Attribute | Type | Notes |
+|-----------|------|-------|
+| `value` | number | Normalized `0..1` (absolute mode) |
+| `label` | string | Caption under the knob |
+| `unit` | string | Unit suffix shown with the value |
+| `cc` | string | MIDI CC number; shows a small CC badge |
+| `mode` | `absolute` \| `endless` | Interaction model. Default `absolute` |
+| `display` | string | Cap text in **endless** mode (app-owned) |
+| `disabled` | boolean | |
+
+Events (all `CustomEvent`):
+- `input` — live, during a drag (absolute). `event.detail = { value }` (normalized).
+- `change` — on commit (absolute). `event.detail = { value }`.
+- `turn` — a detent step (endless). `event.detail = { delta, ctrl, shift }` (`delta` is the signed step count; `ctrl`/`shift` report modifier keys for fine/coarse handling).
+- `press` — a click with no drag (endless). `event.detail = { ctrl }`.
+- `lock` — a double-click (endless).
+- `learn` — right-click / long-press (both modes); wire it to MIDI-learn.
+
+> **Canonical-reference caveat:** `api-canonical.md` lists only `lock`/`learn`/`turn`/`press` for `<knob-dial>`. Its generator can't see `input`/`change` because they're dispatched through an indirection (`_emit(type)`), not a literal event name. Those two events are real (verified in source) — this is the one spot where the prose is *more* complete than the mechanically-extracted file, so trust this section for knob-dial's `input`/`change`.
+
+The `format` (absolute) and `display` (endless) hooks are how real-world units reach the cap — the component itself only knows about the normalized value. Form-associated: **no.**
+
+### `<led-matrix>` — pixel inspector readout
+
+```js
+import { LedMatrix } from 'handfish'
+```
+
+A micro-OLED-style inspector screen: a dense 128×32 monochrome pixel grid rendered on a `<canvas>`, for a label + large value + optional pattern preview (a Euclidean onset grid or a bar gauge). Colors are read from CSS custom properties at paint time, each with a built-in fallback:
+
+| Token | Meaning |
+|-------|---------|
+| `--hf-led-bg` | background (near-black) |
+| `--hf-led` | lit pixel (cyan) |
+| `--hf-led-dim` | dim pixel / label |
+| `--hf-led-hi` | highlight pixel |
+
+| Attribute | Type | Notes |
+|-----------|------|-------|
+| `label` | string | Small label line |
+| `value` | string | Large value readout |
+| `mode` | string | Preview mode (`value`, onset grid, bar gauge) |
+
+Imperative API: `el.show({ label, value, mode, data, playhead })` pushes a full descriptor at once (use this for live updates driven by a clock — `data`/`playhead` have no attribute form). Declarative `label` / `value` / `mode` attributes cover the static case. No events. Form-associated: **no.**
+
+### `<tempo-bar>` — transport tempo clock
+
+```js
+import { TempoBar, BeatScheduler, DIVIDER_OPTIONS, computeBarSeconds } from 'handfish'
+```
+
+A compact transport strip: tap-tempo button, editable BPM field, divider dropdown, four beat-indicator lights, and a phase-nudge slider — assembled from handfish primitives. It owns a `BeatScheduler` (a free-running beat clock) and, by default, starts it on connect.
+
+| Attribute | Type | Notes |
+|-----------|------|-------|
+| `bpm` | number | Initial tempo. Default 120 |
+| `divider` | number | Beats-per-bar divider. Default 4 |
+| `min-bpm` / `max-bpm` | number | Clamp range. Default 40 / 300 |
+| `storage-key` | string | If set, persists BPM/divider to `localStorage` under this key |
+| `manual` | boolean | Skip auto-start; call `el.start()` yourself |
+| `no-divider` | boolean | Hide the divider dropdown |
+| `no-phase` | boolean | Hide the phase-reset button and slider |
+
+Properties: `scheduler` (the `BeatScheduler`), `bpm`, `divider`. Methods: `start()`, `stop()`, `tap()`, `resetPhase()`, `barSeconds()`, `showBeat(beatInBar)` (drive the lights from an external clock).
+
+Events (all `CustomEvent`):
+- `change` — BPM changed from any source. `event.detail = { bpm }`.
+- `dividerchange` — divider changed. `event.detail = { divider }`.
+- `beat` — fires each beat. `event.detail = { bpm, beatIndex, beatInBar, barIndex, isDownbeat }`.
+
+To slave other UI to the transport, listen for `beat`; to drive the lights from an *external* clock instead of the internal scheduler, set `manual` and call `showBeat()`. `BeatScheduler` and `computeBarSeconds` are exported for headless use. Form-associated: **no.**
+
+## Application chrome
+
+### `<menu-bar>` — application menu bar
+
+```js
+import { MenuBar } from 'handfish'
+```
+
+The unified top menu bar (File / Edit / View …) shared across the Noise Factor apps. Its styling lives in `menus-and-toolbars.css`, which `index.css` already imports — no extra stylesheet needed.
+
+**Config-driven, not children-driven.** You build the bar by assigning a config object to the `.config` **property** (not by nesting elements). The config lays out menus, items, and inline controls across left / center / right regions. Dynamic fields (labels, `checked`, `disabled`, `hidden`, icons, tooltips, text, `pressed`, `active`, `interactive`) accept either a plain value or a zero-argument function; functions are re-evaluated when a menu opens, after every activation, and on `refresh()` / `update()`. `update(id, patch)` applies overrides that persist until patched again.
+
+```js
+const bar = document.querySelector('menu-bar')
+bar.config = {
+    left: [
+        { id: 'file', label: 'File', items: [
+            { id: 'open', label: 'Open…', shortcut: 'Mod+O' },
+            { id: 'save', label: 'Save', shortcut: 'Mod+S', disabled: () => !isDirty() },
+        ]},
+    ],
+}
+bar.addEventListener('menu-select', (e) => handle(e.detail.id))
+```
+
+| Attribute | Type | Notes |
+|-----------|------|-------|
+| `floating` | boolean | Fixed top-left "island" placement (≈590px, safe-area aware) |
+| `hover-switch` | string | Set to `"off"` to disable hover-switching between open menus |
+| `bar-label` | string | Accessible label for the bar. Default `"Application menu"` |
+
+Events (all `CustomEvent`):
+- `menu-select` — an item or control was activated. `event.detail = { id, menuId, controlType, itemType, checked }`.
+- `menu-open` — a dropdown opened. `event.detail = { menuId }`.
+- `menu-close` — a dropdown closed. `event.detail = { menuId }`.
+
+> **Security:** like `AboutDialog`, the config is **trusted developer input** — a menu item's `html` is interpolated as HTML and its `attrs` / `classes` are applied verbatim. Never build config fields from user-controlled strings. See `examples/index.html` in the handfish repo for a full config example.
+
+`<menu-bar>` registers on the escape stack and uses logical CSS throughout, so it is already RTL-ready; shortcut hints render as plain text (use the `formatShortcut` helper — see `references/utilities.md` — to stay platform-correct). Form-associated: **no.**
+
+## Collaboration (Seance)
+
+Three components for "Seance" real-time collaboration. All are **stateless with respect to networking** — the app owns the session lifecycle and reflects it back through attributes (`state`, `session-id`, `session-url`); the components only emit *intent* events. Every user-facing string is an overridable attribute (see `references/i18n.md`).
+
+### `<seance-dialog>` — collaboration session dialog
+
+```js
+import { SeanceDialog, SEANCE_LOGO_SVG } from 'handfish'
+```
+
+The unified modal for going online, joining a session by id, and managing the live session (indicator, share URL, copy, go offline) — laid out like the About dialog, with the Seance logo tinted by the host theme via `currentColor`. `SEANCE_LOGO_SVG` is exported so a trigger button can show a matching graphic.
+
+| Attribute | Notes |
+|-----------|-------|
+| `heading` | Dialog heading |
+| `state` | App-reflected session state: `offline` \| `connecting` \| `online` \| `readonly` |
+| `session-id` / `session-url` | The live session's id and shareable URL |
+| `copy` | Body copy |
+| `take-label`, `join-label`, `join-label-text`, `join-placeholder`, `copy-label`, `offline-label`, `offline-status-label`, `connecting-label`, `online-label`, `url-label` | Overridable strings for every control and status line — localize these |
+
+Open and close it imperatively: **`el.show()`** opens the modal (a native `<dialog>` via `showModal()` under the hood), **`el.hide()`** closes it (`el.hide({ emitCancel: true })` also fires `cancel`). It's `hidden` until shown.
+
+Events (all `CustomEvent`): `take-online`, `join-session` (`detail = { sessionId }`), `copy-url` (`detail = { sessionUrl }`), `go-offline`, `cancel`. The app performs the actual network action and then updates `state` / `session-id` / `session-url` to reflect the result. Registers on the escape stack (Escape closes it). Form-associated: **no.**
+
+### `<session-status>` — live session indicator
+
+```js
+import { SessionStatus } from 'handfish'
+```
+
+A compact inline indicator (dot + id + copy / go-offline affordances) for showing an active session outside a modal — e.g., in a toolbar. Attributes: `state`, `session-id`, `session-url`, `copy-label`, `offline-label`. Events: `copy-url` (`detail = { sessionId, sessionUrl }`), `go-offline` (`detail = { sessionId }`). Form-associated: **no.**
+
+### `<join-session-dialog>` — join-by-id dialog
+
+```js
+import { JoinSessionDialog } from 'handfish'
+```
+
+A focused modal for the single task of joining a session by id (a lighter-weight subset of `<seance-dialog>`). Attributes: `title`, `copy`, `join-label`, `cancel-label`, `session-id`. Events: `join-session` (`detail = { sessionId }`), `cancel`. Open/close it the same way as `<seance-dialog>`: `el.show()` / `el.hide()`. Reach for this when the app only needs "join," not the full online/offline lifecycle. Form-associated: **no.**
+
 ### `AboutDialog` — programmatic "about" modal
 
 ```js
@@ -403,7 +598,11 @@ const about = new AboutDialog({
     copyright: '2026',                  // optional, defaults to current year
     repo: 'https://github.com/...',     // optional, link to repo
     ecosystem: 'Built on Noisemaker',   // optional, fine print
-    titleFont: 'Custom-Font, sans-serif' // optional, override title typography
+    titleFont: 'Custom-Font, sans-serif', // optional, override title typography
+    labels: {                           // optional, localize the field labels
+        version: 'Version', build: 'Build', deployed: 'Deployed',
+        noisemakerEngine: 'Noisemaker Engine', local: 'local', unavailable: 'n/a',
+    }
 })
 
 about.show()       // open the modal
@@ -418,6 +617,8 @@ about.setEcosystem('Some footer text')
 ```
 
 The dialog uses a native `<dialog>` element internally and follows handfish's escape-key conventions (Escape closes it).
+
+`labels` merges over the English defaults (`{ version, build, deployed, noisemakerEngine, local, unavailable }`) — pass translated strings to localize. The dialog HTML-escapes the **dynamic** build/version/deploy values it renders and wraps them in `<bdi dir="auto">`, so mixed-direction data (an English hash inside an Arabic UI) stays correctly isolated. The other config fields (`name`, `tagline`, `ecosystem`, `logo`, `copyright`) are interpolated as **trusted HTML** — the class is designed for developer-supplied content (`logo` is raw SVG markup), so never build those fields from user-controlled strings. See `references/i18n.md`.
 
 ## Helper APIs (not custom elements)
 
@@ -461,6 +662,16 @@ Handfish maintains a global LIFO stack of escapeable elements. The topmost one c
 
 Two dozen functions for RGB / HSV / OkLab / OKLCH / hex conversion and gamut mapping. See `references/color.md`.
 
+### Keyboard-shortcut formatting — `formatShortcut` / `isMacPlatform`
+
+```js
+import { formatShortcut, isMacPlatform } from 'handfish'
+
+formatShortcut('Mod+Shift+Z')  // '⇧⌘Z' on Mac, 'Ctrl+Shift+Z' elsewhere
+```
+
+Format a `+`-separated shortcut spec for display on the current platform. `Mod` maps to ⌘ on Mac and Ctrl elsewhere; Mac output uses canonical `⌃⌥⇧⌘` glyph order. Use it for menu shortcut hints (e.g. in a `<menu-bar>` config) so a single `'Mod+…'` spec stays platform-correct. See `references/utilities.md`.
+
 ## Form integration
 
 Form-associated components (`<slider-value>`, `<select-dropdown>`, `<color-picker>`, `<color-wheel>`, `<vector2d-picker>`, `<vector3d-picker>`, `<justify-button-group>`) participate in native `<form>` submission via `attachInternals()`. Inside a `<form>`:
@@ -485,7 +696,7 @@ Form-associated components (`<slider-value>`, `<select-dropdown>`, `<color-picke
 </script>
 ```
 
-Components that are **not** form-associated (`<toggle-switch>`, `<color-swatch>`, `<dropdown-menu>`, `<gradient-stops>`, `<code-editor>`, `<image-magnifier>`) won't appear in `FormData`. Mirror their values into hidden inputs or read them directly when submitting.
+Components that are **not** form-associated (`<toggle-switch>`, `<color-swatch>`, `<dropdown-menu>`, `<gradient-stops>`, `<code-editor>`, `<image-magnifier>`, and all of the industrial / chrome / collaboration components — `<knob-dial>`, `<led-matrix>`, `<tempo-bar>`, `<menu-bar>`, `<seance-dialog>`, `<session-status>`, `<join-session-dialog>`) won't appear in `FormData`. Mirror their values into hidden inputs or read them directly when submitting. (`<knob-dial>` in particular holds a value but isn't form-associated — read `el.value` or track its `change` event.)
 
 ## Programmatic instantiation
 

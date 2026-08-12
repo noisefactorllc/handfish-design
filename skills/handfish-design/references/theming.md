@@ -172,3 +172,16 @@ When something visually breaks under a specific theme, the cause is almost alway
 - **Building app-specific theming on top of `[data-theme]`.** If you need a per-page or per-section variation, scope it to a class (`<section class="hero">`) and override tokens there. Don't add new `data-theme` values for non-theme purposes.
 - **Switching themes by reloading the page.** Themes are designed to switch live — a reload is unnecessary and feels broken to users.
 - **Hardcoding the default-dark colors as fallbacks "just in case the theme doesn't load."** If `index.css` doesn't load, theming is the least of the page's problems. Don't pollute the codebase with literals.
+- **Conflating the color theme with the typeface or the direction.** `data-theme` is one of three independent root-level axes (see below); don't reach for a new `data-theme` value to change the font or flip the layout.
+
+## Three orthogonal axes: theme, language, direction
+
+Handfish separates three concerns onto three independent attributes on `<html>` — set them in any combination:
+
+| Attribute | Controls | Values |
+|-----------|----------|--------|
+| `data-theme` | The **color** palette (the `--hf-*` primitive layer) | `dark`, `cyberpunk`, `neutral-light`, … (this file's catalog) |
+| `data-language` | The **typeface** "design language" | *(unset)* = default Nunito; `industrial` = Atkinson Hyperlegible (requires `industrial.css`) |
+| `dir` | Text **direction** (bidi) | `ltr` (default), `rtl` |
+
+For example, `<html data-theme="neutral-dark" data-language="industrial" dir="rtl">` is a valid, fully-supported combination: neutral-dark colors, the industrial instrument typeface, laid out right-to-left. Each axis is orthogonal — changing one never forces a change in another. The industrial typeface layer is covered in `setup.md`; direction/bidi in `i18n.md`.

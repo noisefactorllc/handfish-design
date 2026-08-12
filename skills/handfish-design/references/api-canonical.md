@@ -5,15 +5,15 @@
 ## Provenance
 
 - **handfish version:** 0.10
-- **handfish commit (last touched the JSON):** `7e4fa9a8` (2026-05-10T18:46:51-06:00)
-- **This file regenerated:** 2026-05-11T00:48:02.390Z
+- **handfish commit (last touched the JSON):** `d8d350c2` (2026-07-28T14:11:00-06:00)
+- **This file regenerated:** 2026-08-12T22:03:17.372Z
 - **Generator:** `handfish/scripts/generate-component-api.js` → JSON → `handfish-design/scripts/regenerate-canonical-api.js` → this file
 
 When this file disagrees with `components.md` or another reference, **this file wins** — components.md may have drifted; this is mechanically derived from source.
 
 ## Custom elements
 
-Total: **14** registered custom elements. Form-associated components are tagged accordingly.
+Total: **21** registered custom elements. Form-associated components are tagged accordingly.
 
 ### `<code-editor>`
 
@@ -42,14 +42,18 @@ Total: **14** registered custom elements. Form-associated components are tagged 
 
 **Events:**
 
-- `input` — CustomEvent, `event.detail = { value }`
+- `forceevalblock` — CustomEvent (detail not statically extractable; check source)
 - `forcerecompile` — CustomEvent (detail not statically extractable; check source)
+- `selectionchange` — CustomEvent, `event.detail = { start, end, direction, value }`
+- `input` — CustomEvent, `event.detail = { value, previousValue, edit, source }`
 
 ### `<color-picker>`
 
 - **Class:** `ColorPicker`
 - **Source:** `src/components/color-picker/ColorPicker.js`
 - **Form-associated:** **yes** (`attachInternals()`, participates in `<form>` + `FormData`)
+
+> Color Picker Dropdown Component
 
 **Observed attributes:**
 
@@ -91,6 +95,8 @@ Total: **14** registered custom elements. Form-associated components are tagged 
 - **Class:** `ColorWheel`
 - **Source:** `src/components/color-wheel/ColorWheel.js`
 - **Form-associated:** **yes** (`attachInternals()`, participates in `<form>` + `FormData`)
+
+> Color Wheel Web Component
 
 **Observed attributes:**
 
@@ -141,6 +147,10 @@ Registered alongside `<dropdown-menu>` (importing the parent registers both). Se
 - **Source:** `src/components/gradient-stops/GradientStops.js`
 - **Form-associated:** no
 
+> Gradient Stops Component
+> Draggable color stop handles for positioning colors in a gradient
+> Inspired by Photoshop's gradient editor
+
 **Observed attributes:**
 
 - `disabled`
@@ -158,6 +168,8 @@ Registered alongside `<dropdown-menu>` (importing the parent registers both). Se
 - **Source:** `src/components/image-magnifier/ImageMagnifier.js`
 - **Form-associated:** no
 
+> Image Magnifier Web Component
+
 **Observed attributes:**
 
 - `active`
@@ -167,6 +179,27 @@ Registered alongside `<dropdown-menu>` (importing the parent registers both). Se
 **Events:**
 
 _No events dispatched._
+
+### `<join-session-dialog>`
+
+- **Class:** `JoinSessionDialog`
+- **Source:** `src/components/join-session-dialog/JoinSessionDialog.js`
+- **Form-associated:** no
+
+> Join Session Dialog Component
+
+**Observed attributes:**
+
+- `title`
+- `copy`
+- `join-label`
+- `cancel-label`
+- `session-id`
+
+**Events:**
+
+- `cancel` — CustomEvent (detail not statically extractable; check source)
+- `join-session` — CustomEvent, `event.detail = { sessionId }`
 
 ### `<justify-button-group>`
 
@@ -181,11 +214,107 @@ _No events dispatched._
 - `value`
 - `disabled`
 - `name`
+- `left-label`
+- `center-label`
+- `right-label`
 
 **Events:**
 
 - `change` — Event (no `detail`; read `el.value` or relevant property)
 - `input` — CustomEvent, `event.detail = { value }`
+
+### `<knob-dial>`
+
+- **Class:** `KnobDial`
+- **Source:** `src/components/knob-dial/KnobDial.js`
+- **Form-associated:** no
+
+**Observed attributes:**
+
+- `value`
+- `label`
+- `unit`
+- `cc`
+- `disabled`
+- `mode`
+- `display`
+
+**Events:**
+
+- `lock` — CustomEvent (detail not statically extractable; check source)
+- `learn` — CustomEvent (detail not statically extractable; check source)
+- `turn` — CustomEvent (detail not statically extractable; check source)
+- `press` — CustomEvent (detail not statically extractable; check source)
+
+### `<led-matrix>`
+
+- **Class:** `LedMatrix`
+- **Source:** `src/components/led-matrix/LedMatrix.js`
+- **Form-associated:** no
+
+**Observed attributes:**
+
+- `label`
+- `value`
+- `mode`
+
+**Events:**
+
+_No events dispatched._
+
+### `<menu-bar>`
+
+- **Class:** `MenuBar`
+- **Source:** `src/components/menu-bar/MenuBar.js`
+- **Form-associated:** no
+
+> Application menu bar web component
+
+**Observed attributes:**
+
+- `floating`
+- `hover-switch`
+- `bar-label`
+
+**Events:**
+
+- `menu-open` — CustomEvent, `event.detail = { menuId }`
+- `menu-close` — CustomEvent, `event.detail = { menuId }`
+- `menu-select` — CustomEvent, `event.detail = { id, menuId, controlType, itemType, checked }`
+
+### `<seance-dialog>`
+
+- **Class:** `SeanceDialog`
+- **Source:** `src/components/seance-dialog/SeanceDialog.js`
+- **Form-associated:** no
+
+> Seance Dialog Component
+
+**Observed attributes:**
+
+- `heading`
+- `state`
+- `session-id`
+- `session-url`
+- `copy`
+- `take-label`
+- `join-label`
+- `join-label-text`
+- `join-placeholder`
+- `copy-label`
+- `offline-label`
+- `offline-status-label`
+- `connecting-label`
+- `online-label`
+- `url-label`
+
+**Events:**
+
+- `cancel` — CustomEvent (detail not statically extractable; check source)
+- `join-session` — CustomEvent, `event.detail = { sessionId }`
+- `take-online` — CustomEvent (detail not statically extractable; check source)
+- `copy-url` — CustomEvent, `event.detail = { sessionUrl }`
+- `go-offline` — CustomEvent (detail not statically extractable; check source)
 
 ### `<select-dropdown>`
 
@@ -200,10 +329,36 @@ _No events dispatched._
 - `value`
 - `disabled`
 - `name`
+- `placeholder`
+- `empty-text`
+- `dialog-title`
+- `dialog-label`
+- `close-label`
 
 **Events:**
 
 - `change` — Event (no `detail`; read `el.value` or relevant property)
+
+### `<session-status>`
+
+- **Class:** `SessionStatus`
+- **Source:** `src/components/session-status/SessionStatus.js`
+- **Form-associated:** no
+
+> Session Status Component
+
+**Observed attributes:**
+
+- `state`
+- `session-id`
+- `session-url`
+- `copy-label`
+- `offline-label`
+
+**Events:**
+
+- `copy-url` — CustomEvent, `event.detail = { sessionId, sessionUrl }`
+- `go-offline` — CustomEvent, `event.detail = { sessionId }`
 
 ### `<slider-value>`
 
@@ -229,6 +384,22 @@ _No events dispatched._
 - `input` — Event (no `detail`; read `el.value` or relevant property)
 - `change` — Event (no `detail`; read `el.value` or relevant property)
 
+### `<tempo-bar>`
+
+- **Class:** `TempoBar`
+- **Source:** `src/components/tempo-bar/TempoBar.js`
+- **Form-associated:** no
+
+**Observed attributes:**
+
+_(none)_
+
+**Events:**
+
+- `change` — CustomEvent, `event.detail = { bpm }`
+- `dividerchange` — CustomEvent, `event.detail = { divider }`
+- `beat` — CustomEvent (detail not statically extractable; check source)
+
 ### `<toggle-switch>`
 
 - **Class:** `ToggleSwitch`
@@ -252,6 +423,8 @@ _No events dispatched._
 - **Source:** `src/components/vector2d-picker/Vector2dPicker.js`
 - **Form-associated:** **yes** (`attachInternals()`, participates in `<form>` + `FormData`)
 
+> Vector2D Picker Component
+
 **Observed attributes:**
 
 - `value`
@@ -272,6 +445,8 @@ _No events dispatched._
 - **Class:** `Vector3dPicker`
 - **Source:** `src/components/vector3d-picker/Vector3dPicker.js`
 - **Form-associated:** **yes** (`attachInternals()`, participates in `<form>` + `FormData`)
+
+> Vector3D Picker Component
 
 **Observed attributes:**
 
@@ -311,7 +486,7 @@ See `components.md` for constructor signature and method examples.
 - `showToast` — default duration: 2000ms
 - `showWarning` — default duration: 2000ms
 
-Real options for `showToast(msg, opts)`: `{ type, duration, dismissible, showProgress }`. There is no per-call `icon` option.
+Real options for `showToast(msg, opts)`: `{ type, duration, dismissible, showProgress, dismissLabel }`. `dismissLabel` (default `'Dismiss'`) sets the close button's `aria-label` — override it to localize. There is no per-call `icon` option.
 
 ## Utility modules
 
@@ -359,6 +534,15 @@ Real options for `showToast(msg, opts)`: `{ type, duration, dismissible, showPro
 - `registerEscapeable`
 - `unregisterEscapeable`
 
+### `utils/shortcuts.js`
+
+- **Source:** `src/utils/shortcuts.js`
+
+**Exports:**
+
+- `formatShortcut`
+- `isMacPlatform`
+
 ### `utils/tooltips.js`
 
 - **Source:** `src/utils/tooltips.js`
@@ -403,29 +587,42 @@ Plus the two default modes in `tokens.css`: `dark` (no attribute, or `data-theme
 Importing any of these via `import { X } from 'handfish'` is the supported entry point. The list below is the complete set as of the generation timestamp.
 
 - `AboutDialog`
+- `BeatScheduler`
 - `CodeEditor`
 - `ColorPicker`
 - `ColorSwatch`
 - `ColorWheel`
+- `DIVIDER_OPTIONS`
 - `DropdownItem`
 - `DropdownMenu`
 - `EDITOR_THEMES`
 - `GradientStops`
 - `ImageMagnifier`
+- `JoinSessionDialog`
 - `JustifyButtonGroup`
+- `KnobDial`
+- `LedMatrix`
+- `MenuBar`
+- `SEANCE_LOGO_SVG`
+- `SeanceDialog`
 - `SelectDropdown`
+- `SessionStatus`
 - `SliderValue`
 - `THEME_KEYS`
+- `TempoBar`
 - `ToggleSwitch`
 - `Vector2dPicker`
 - `Vector3dPicker`
 - `applyEditorTheme`
 - `applyEditorThemeGlobal`
 - `closeTopmost`
+- `computeBarSeconds`
 - `dslTokenizer`
+- `formatShortcut`
 - `hasOpenEscapeables`
 - `initEscapeHandler`
 - `initializeTooltips`
+- `isMacPlatform`
 - `registerEscapeable`
 - `showError`
 - `showInfo`
