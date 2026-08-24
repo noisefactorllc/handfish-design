@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync, rmSync, copyFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
@@ -12,19 +12,22 @@ const script = join(repoRoot, 'scripts', 'regenerate-canonical-api.js')
 const fixture = join(here, 'fixtures', 'component-api.json')
 const committedReference = join(repoRoot, 'skills', 'handfish-design', 'references', 'api-canonical.md')
 
-/** Run the generator. Returns { status, stdout, stderr } and never throws on a non-zero exit. */
+/**
+ * Run the generator. Returns { status, stdout, stderr } and never throws.
+ *
+ * spawnSync rather than execFileSync: several of these runs are expected to
+ * fail, and execFileSync surfaces those as a throw whose success path has no
+ * stderr at all — which quietly made a warning-on-success assertion
+ * unfalsifiable. Both streams are captured, never forwarded, so a passing
+ * suite does not print the failures it deliberately provokes.
+ */
 function run(args) {
-    try {
-        const stdout = execFileSync(process.execPath, [script, ...args], {
-            encoding: 'utf8',
-            // Captured, not forwarded: several of these runs are expected to
-            // fail, and a passing suite should not print their errors.
-            stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        return { status: 0, stdout, stderr: '' }
-    } catch (err) {
-        return { status: err.status, stdout: err.stdout ?? '', stderr: err.stderr ?? '' }
-    }
+    const result = spawnSync(process.execPath, [script, ...args], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    if (result.error) throw result.error
+    return { status: result.status, stdout: result.stdout ?? '', stderr: result.stderr ?? '' }
 }
 
 function withTempDir(fn) {
@@ -109,7 +112,7 @@ test('a missing input is reported, not thrown', () => {
     assert.match(result.stderr + result.stdout, /not found/i)
 })
 
-test('a shallow input checkout is refused rather than stamped with the wrong commit', () => {
+test('a shallow input checkout yields unknown provenance, not the wrong commit', () => {
     // `git log -1 -- <path>` on a shallow clone names the grafted tip as the
     // creator of every file, so provenance would be a plausible lie and the
     // output would differ from a full checkout's for no visible reason. This
@@ -135,10 +138,24 @@ test('a shallow input checkout is refused rather than stamped with the wrong com
         const shallow = join(dir, 'shallow')
         git(['clone', '-q', '--depth', '1', `file://${origin}`, shallow], dir)
 
-        const result = run(['--input', join(shallow, 'docs', 'component-api.json'), '--output', join(dir, 'out.md')])
-        assert.notEqual(result.status, 0, 'a shallow checkout must be refused')
-        assert.match(result.stderr, /[Ss]hallow/)
-        assert.equal(existsSync(join(dir, 'out.md')), false, 'nothing should be written')
+        const out = join(dir, 'out.md')
+        const result = run(['--input', join(shallow, 'docs', 'component-api.json'), '--output', out])
+        assert.equal(result.status, 0)
+        assert.match(result.stderr, /shallow/i, 'the degraded provenance must be announced')
+
+        const provenance = readFileSync(out, 'utf8').match(/^- \*\*handfish commit.*$/m)[0]
+        assert.match(provenance, /unknown/, 'provenance must be unknown, never a confidently wrong SHA')
+
+        // The tip is what a shallow `git log -1 -- <path>` wrongly reports.
+        const tip = git(['rev-parse', 'HEAD'], shallow).toString().trim()
+        assert.doesNotMatch(provenance, new RegExp(tip.slice(0, 8)))
+
+        // Deterministic despite the degradation: the same shallow input twice
+        // must still render identically, or the drift check is unusable
+        // anywhere a checkout happens to be shallow — CI included.
+        const again = join(dir, 'again.md')
+        assert.equal(run(['--input', join(shallow, 'docs', 'component-api.json'), '--output', again]).status, 0)
+        assert.equal(readFileSync(out, 'utf8'), readFileSync(again, 'utf8'))
     })
 })
 

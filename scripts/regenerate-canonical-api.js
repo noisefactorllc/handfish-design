@@ -100,12 +100,14 @@ function gitInfoForJson() {
     }
     if (shallow) {
         // `git log -1 -- <path>` on a shallow clone reports the grafted tip as
-        // having created every file, so provenance would silently be the wrong
-        // commit — and the resulting file would differ from a full checkout's
-        // for no visible reason. Refuse rather than emit a plausible lie.
-        console.error(`Shallow git checkout: ${handfishRoot}`)
-        console.error('Provenance needs real history. Fetch it in full (CI: actions/checkout with fetch-depth: 0).')
-        process.exit(3)
+        // having created every file, so provenance here would be the wrong
+        // commit stated with full confidence. Report it as unknown instead:
+        // a stable, honest value that cannot be mistaken for a real SHA, and
+        // one that keeps the output reproducible rather than varying with
+        // however deep the surrounding clone happens to be.
+        console.error(`Warning: shallow git checkout at ${handfishRoot} — provenance unavailable.`)
+        console.error('  Fetch full history for a real commit (CI: actions/checkout with fetch-depth: 0).')
+        return { sha: 'unknown', shortSha: 'unknown', date: 'unknown' }
     }
     try {
         const sha = git(`git log -1 --format=%H -- ${JSON.stringify(inputPath)}`)
