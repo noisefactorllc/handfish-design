@@ -6,7 +6,7 @@
 
 - **handfish version:** 0.10
 - **handfish commit (last touched the JSON):** `d8d350c2` (2026-07-28T14:11:00-06:00)
-- **This file regenerated:** 2026-08-12T22:03:17.372Z
+- **This file regenerated:** deterministically from the commit above — run `git log` on this file for when.
 - **Generator:** `handfish/scripts/generate-component-api.js` → JSON → `handfish-design/scripts/regenerate-canonical-api.js` → this file
 
 When this file disagrees with `components.md` or another reference, **this file wins** — components.md may have drifted; this is mechanically derived from source.
@@ -584,7 +584,7 @@ Plus the two default modes in `tokens.css`: `dark` (no attribute, or `data-theme
 
 ## Public exports from `src/index.js`
 
-Importing any of these via `import { X } from 'handfish'` is the supported entry point. The list below is the complete set as of the generation timestamp.
+Importing any of these via `import { X } from 'handfish'` is the supported entry point. The list below is the complete set as of the handfish commit above.
 
 - `AboutDialog`
 - `BeatScheduler`
