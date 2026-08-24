@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdtempSync, existsSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync, rmSync, copyFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,7 +15,12 @@ const committedReference = join(repoRoot, 'skills', 'handfish-design', 'referenc
 /** Run the generator. Returns { status, stdout, stderr } and never throws on a non-zero exit. */
 function run(args) {
     try {
-        const stdout = execFileSync(process.execPath, [script, ...args], { encoding: 'utf8', stderr: 'pipe' })
+        const stdout = execFileSync(process.execPath, [script, ...args], {
+            encoding: 'utf8',
+            // Captured, not forwarded: several of these runs are expected to
+            // fail, and a passing suite should not print their errors.
+            stdio: ['ignore', 'pipe', 'pipe'],
+        })
         return { status: 0, stdout, stderr: '' }
     } catch (err) {
         return { status: err.status, stdout: err.stdout ?? '', stderr: err.stderr ?? '' }
@@ -81,7 +86,10 @@ test('--check reports a missing reference rather than crashing', () => {
         const out = join(dir, 'absent.md')
         const result = run(['--input', fixture, '--output', out, '--check'])
         assert.notEqual(result.status, 0)
-        assert.match(result.stderr + result.stdout, /absent\.md/)
+        assert.match(result.stderr, /^Missing: .*absent\.md$/m)
+        // An uncaught ENOENT also exits non-zero and also mentions the path,
+        // so asserting only that would pass with the guard deleted.
+        assert.doesNotMatch(result.stderr, /at .*regenerate-canonical-api\.js/)
     })
 })
 
@@ -99,6 +107,39 @@ test('a missing input is reported, not thrown', () => {
     const result = run(['--input', join(tmpdir(), 'definitely-not-here.json')])
     assert.notEqual(result.status, 0)
     assert.match(result.stderr + result.stdout, /not found/i)
+})
+
+test('a shallow input checkout is refused rather than stamped with the wrong commit', () => {
+    // `git log -1 -- <path>` on a shallow clone names the grafted tip as the
+    // creator of every file, so provenance would be a plausible lie and the
+    // output would differ from a full checkout's for no visible reason. This
+    // is not hypothetical: it is what actions/checkout does by default.
+    withTempDir((dir) => {
+        const origin = join(dir, 'origin')
+        const docs = join(origin, 'docs')
+        mkdirSync(docs, { recursive: true })
+        const git = (args, cwd) => execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] })
+
+        git(['init', '-q', '-b', 'main'], origin)
+        git(['config', 'user.email', 'test@example.invalid'], origin)
+        git(['config', 'user.name', 'Test'], origin)
+        copyFileSync(fixture, join(docs, 'component-api.json'))
+        git(['add', '.'], origin)
+        git(['commit', '-qm', 'the commit that actually touched the json'], origin)
+        // A later commit touching something else: on a full clone provenance
+        // resolves to the first commit, on a shallow clone to this one.
+        writeFileSync(join(origin, 'unrelated.txt'), 'later\n')
+        git(['add', '.'], origin)
+        git(['commit', '-qm', 'unrelated'], origin)
+
+        const shallow = join(dir, 'shallow')
+        git(['clone', '-q', '--depth', '1', `file://${origin}`, shallow], dir)
+
+        const result = run(['--input', join(shallow, 'docs', 'component-api.json'), '--output', join(dir, 'out.md')])
+        assert.notEqual(result.status, 0, 'a shallow checkout must be refused')
+        assert.match(result.stderr, /[Ss]hallow/)
+        assert.equal(existsSync(join(dir, 'out.md')), false, 'nothing should be written')
+    })
 })
 
 // The drift alarm proper. Skipped when there is no sibling handfish checkout,
@@ -122,13 +163,44 @@ test('every element handfish registers is named in the skill activation descript
     const description = skill.match(/^description:\s*(.*)$/m)?.[1] ?? ''
     const tags = JSON.parse(readFileSync(siblingApi, 'utf8')).custom_elements.map(c => c.tag)
 
-    const missing = tags.filter(tag => !description.includes(tag))
+    // Whole-tag matching. Plain `includes` would let a future tag that is a
+    // substring of an existing one (a bare `bar` against `menu-bar`) pass on
+    // the surface that decides whether this skill loads at all.
+    const mentions = (text, tag) => new RegExp(`(?<![a-z0-9-])${tag}(?![a-z0-9-])`).test(text)
+
+    const missing = tags.filter(tag => !mentions(description, tag))
     assert.deepEqual(
         missing, [],
         `SKILL.md's activation description does not mention: ${missing.join(', ')}`,
     )
+
+    // contributing.md tells maintainers to update the README trigger list too,
+    // so check it rather than trusting the instruction to be followed.
+    const readme = readFileSync(join(repoRoot, 'README.md'), 'utf8')
+    const missingFromReadme = tags.filter(tag => !mentions(readme, tag))
+    assert.deepEqual(
+        missingFromReadme, [],
+        `README's trigger list does not mention: ${missingFromReadme.join(', ')}`,
+    )
 })
 
-test('the committed reference is the one the generator writes by default', () => {
+test('the generator writes the committed reference when given no --output', () => {
+    // Asserting the file merely exists would be a tautology for a tracked
+    // file. Render the same input to a temp path, then confirm the default
+    // path is what a no-flag run reports writing.
     assert.ok(existsSync(committedReference), 'the canonical reference must exist')
+    withTempDir((dir) => {
+        const elsewhere = join(dir, 'elsewhere.md')
+        assert.equal(run(['--input', fixture, '--output', elsewhere]).status, 0)
+        assert.notEqual(
+            readFileSync(elsewhere, 'utf8'), readFileSync(committedReference, 'utf8'),
+            'fixture output must differ from the real reference, or this test proves nothing',
+        )
+        const check = run(['--input', fixture, '--check'])
+        assert.notEqual(check.status, 0, 'the fixture is not what the committed reference holds')
+        assert.match(
+            check.stderr, new RegExp(`Stale: ${committedReference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'),
+            'a run with no --output must target the committed reference',
+        )
+    })
 })

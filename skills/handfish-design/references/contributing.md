@@ -240,7 +240,7 @@ node scripts/regenerate-canonical-api.js
 # 4. Diff and review
 git -C ~/platform/handfish-design diff skills/handfish-design/references/api-canonical.md
 
-# 5. Confirm both drift checks are clean
+# 5. Confirm both drift checks are clean (this repo's suite, not handfish's)
 npm test
 ```
 

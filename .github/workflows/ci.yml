@@ -19,6 +19,16 @@ on:
   schedule:
     # Mondays 15:20 UTC. Off the hour: scheduled runs bunched on :00 are the
     # first thing GitHub delays under load.
+    #
+    # Caveat worth knowing: GitHub disables scheduled workflows in public repos
+    # after 60 days without repository activity, and a docs-only plugin going
+    # quiet for two months is the normal case — which is also when drift is
+    # most likely. If that happens, GitHub emails the maintainers and the
+    # workflow can be re-enabled from the Actions tab. The durable fix is to
+    # make this event-driven instead: have handfish's release workflow
+    # repository_dispatch here, so the check runs when handfish changes rather
+    # than on a clock. That needs a change in handfish and is left as a
+    # follow-up.
     - cron: '20 15 * * 1'
   workflow_dispatch:
 
@@ -61,10 +71,21 @@ jobs:
 
       # The drift tests resolve ../handfish relative to the repo root, which is
       # why both checkouts are siblings here rather than nested.
+      #
+      # fetch-depth: 0 is load-bearing, not caution. The generator recovers
+      # provenance with `git log -1 -- docs/component-api.json`, and on
+      # actions/checkout's default shallow clone that returns the grafted tip
+      # instead of the commit that touched the file. The generated provenance
+      # line would differ from a full checkout's, so this job would report the
+      # reference stale every single run — a weekly false alarm, which is the
+      # fastest way to teach everyone to ignore a real one. The generator now
+      # refuses a shallow checkout outright rather than emitting the wrong SHA,
+      # so getting this wrong fails loudly instead of lying.
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           repository: noisefactorllc/handfish
           path: handfish
+          fetch-depth: 0
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:

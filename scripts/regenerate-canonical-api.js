@@ -31,7 +31,8 @@
  *   2. cd ~/platform/handfish-design && node scripts/regenerate-canonical-api.js
  *   3. Review the diff in references/api-canonical.md
  *   4. Update prose in components.md if any attribute / event / API changed
- *   5. Bump the source-of-truth anchor in README.md
+ *   5. Add any new tags to the `description` frontmatter in SKILL.md
+ *   6. npm test — confirms both drift checks are clean
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs'
@@ -78,19 +79,45 @@ if (!existsSync(inputPath)) {
 
 const data = JSON.parse(readFileSync(inputPath, 'utf8'))
 
-// The JSON itself is deterministic (no timestamps, no commit hash). Recover
-// provenance from the surrounding git checkout: the last commit that touched
-// the JSON file is when it was last regenerated, and the timestamp of THIS
-// run is when this canonical-md was rebuilt.
+// The JSON itself is deterministic (no timestamps, no commit hash), and this
+// file emits no timestamp of its own. Provenance is recovered from the
+// surrounding git checkout: the last commit that touched the JSON is when it
+// was last regenerated. That, and only that, is what makes the output
+// reproducible enough to check.
 const handfishRoot = dirname(dirname(inputPath))
+
+function git(command) {
+    return execSync(command, { cwd: handfishRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+}
+
 function gitInfoForJson() {
+    let shallow = false
     try {
-        const sha = execSync(`git log -1 --format=%H -- ${JSON.stringify(inputPath)}`, {
-            cwd: handfishRoot, encoding: 'utf8',
-        }).trim()
-        const date = execSync(`git log -1 --format=%cI -- ${JSON.stringify(inputPath)}`, {
-            cwd: handfishRoot, encoding: 'utf8',
-        }).trim()
+        shallow = git('git rev-parse --is-shallow-repository') === 'true'
+    } catch {
+        // Not a git checkout at all — fall through to the unknown provenance
+        // path below, which is a supported (if unhelpful) state.
+    }
+    if (shallow) {
+        // `git log -1 -- <path>` on a shallow clone reports the grafted tip as
+        // having created every file, so provenance would silently be the wrong
+        // commit — and the resulting file would differ from a full checkout's
+        // for no visible reason. Refuse rather than emit a plausible lie.
+        console.error(`Shallow git checkout: ${handfishRoot}`)
+        console.error('Provenance needs real history. Fetch it in full (CI: actions/checkout with fetch-depth: 0).')
+        process.exit(3)
+    }
+    try {
+        const sha = git(`git log -1 --format=%H -- ${JSON.stringify(inputPath)}`)
+        const date = git(`git log -1 --format=%cI -- ${JSON.stringify(inputPath)}`)
+        if (!sha) return { sha: 'unknown', shortSha: 'unknown', date: 'unknown' }
+        try {
+            if (git(`git status --porcelain -- ${JSON.stringify(inputPath)}`)) {
+                console.error(`Warning: ${inputPath} has uncommitted changes.`)
+                console.error(`  Provenance will read ${sha.slice(0, 8)}, which is not the content being read.`)
+                console.error('  Commit the JSON first, or expect this reference to go stale the moment it is.')
+            }
+        } catch { /* status is advisory; never block on it */ }
         return { sha, shortSha: sha.slice(0, 8), date }
     } catch {
         return { sha: 'unknown', shortSha: 'unknown', date: 'unknown' }
@@ -244,7 +271,11 @@ function summariseDrift(onDisk, rendered) {
         const beforeLines = onDisk.split('\n')
         const afterLines = rendered.split('\n')
         const at = beforeLines.findIndex((l, i) => l !== afterLines[i])
-        lines.push(`  no element added or removed; first differing line is ${at + 1}`)
+        // findIndex misses the case where the file on disk is a strict prefix
+        // of the generated one — a stripped trailing newline gets here.
+        lines.push(at === -1
+            ? `  no element added or removed; the file on disk is truncated (${beforeLines.length} lines on disk vs ${afterLines.length} generated)`
+            : `  no element added or removed; first differing line is ${at + 1}`)
     }
     return lines.join('\n')
 }
