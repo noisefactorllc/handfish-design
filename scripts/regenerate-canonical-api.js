@@ -9,8 +9,17 @@
  *
  * By default it looks for the JSON at ../handfish/docs/component-api.json
  * (i.e. a sibling handfish checkout in ~/platform/). Override with --input
- * if your layout differs:
+ * if your layout differs, and --output to write somewhere else:
  *   node scripts/regenerate-canonical-api.js --input /path/to/component-api.json
+ *
+ * --check regenerates in memory and compares against the file on disk without
+ * writing, exiting non-zero if they differ. That is the drift alarm: handfish
+ * ships components on its own cadence, and nothing else notices when this
+ * plugin's canonical reference falls behind.
+ *
+ * The output is deterministic — the same input always produces byte-identical
+ * output — so an empty diff genuinely means nothing changed. Provenance comes
+ * from git rather than a wall clock for exactly this reason.
  *
  * The output file (references/api-canonical.md) is the source-of-truth for
  * attribute names, event types, event detail payloads, form-association
@@ -35,11 +44,31 @@ const repoRoot = join(__dirname, '..')
 
 const args = process.argv.slice(2)
 let inputPath = resolve(repoRoot, '..', 'handfish', 'docs', 'component-api.json')
-const inputFlag = args.indexOf('--input')
-if (inputFlag !== -1 && args[inputFlag + 1]) {
-    inputPath = resolve(args[inputFlag + 1])
+let outputPath = join(repoRoot, 'skills', 'handfish-design', 'references', 'api-canonical.md')
+let checkOnly = false
+
+// Parsed strictly. A tolerated typo would silently fall back to the defaults
+// and overwrite the real reference, which is the failure mode this whole
+// change exists to prevent.
+for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    if (arg === '--check') {
+        checkOnly = true
+    } else if (arg === '--input' || arg === '--output') {
+        const value = args[i + 1]
+        if (!value || value.startsWith('--')) {
+            console.error(`${arg} needs a path`)
+            process.exit(2)
+        }
+        if (arg === '--input') inputPath = resolve(value)
+        else outputPath = resolve(value)
+        i++
+    } else {
+        console.error(`Unrecognised argument: ${arg}`)
+        console.error('Usage: regenerate-canonical-api.js [--input <json>] [--output <md>] [--check]')
+        process.exit(2)
+    }
 }
-const outputPath = join(repoRoot, 'skills', 'handfish-design', 'references', 'api-canonical.md')
 
 if (!existsSync(inputPath)) {
     console.error(`Input not found: ${inputPath}`)
@@ -69,7 +98,6 @@ function gitInfoForJson() {
 }
 const provenance = {
     handfishCommit: gitInfoForJson(),
-    regeneratedAt: new Date().toISOString(),
 }
 
 // ----- Helpers --------------------------------------------------------------
@@ -195,6 +223,32 @@ function themesSection(themes) {
     return lines.join('\n')
 }
 
+// ----- Drift reporting ------------------------------------------------------
+
+/**
+ * Describe how the file on disk differs from what the generator produces.
+ * A raw diff of a 400-line document buries the answer; what a maintainer
+ * needs first is which elements appeared or vanished.
+ */
+function summariseDrift(onDisk, rendered) {
+    const tagsIn = (text) => new Set([...text.matchAll(/^### `<([a-z0-9-]+)>`$/gm)].map(m => m[1]))
+    const before = tagsIn(onDisk)
+    const after = tagsIn(rendered)
+    const added = [...after].filter(t => !before.has(t))
+    const removed = [...before].filter(t => !after.has(t))
+
+    const lines = []
+    if (added.length) lines.push(`  elements added:   ${added.map(t => `<${t}>`).join(', ')}`)
+    if (removed.length) lines.push(`  elements removed: ${removed.map(t => `<${t}>`).join(', ')}`)
+    if (!lines.length) {
+        const beforeLines = onDisk.split('\n')
+        const afterLines = rendered.split('\n')
+        const at = beforeLines.findIndex((l, i) => l !== afterLines[i])
+        lines.push(`  no element added or removed; first differing line is ${at + 1}`)
+    }
+    return lines.join('\n')
+}
+
 // ----- Compose document -----------------------------------------------------
 
 const out = []
@@ -206,7 +260,7 @@ out.push('## Provenance')
 out.push('')
 out.push(`- **handfish version:** ${data.meta.handfish_version}`)
 out.push(`- **handfish commit (last touched the JSON):** \`${provenance.handfishCommit.shortSha}\` (${provenance.handfishCommit.date})`)
-out.push(`- **This file regenerated:** ${provenance.regeneratedAt}`)
+out.push('- **This file regenerated:** deterministically from the commit above — run `git log` on this file for when.')
 out.push(`- **Generator:** \`handfish/scripts/generate-component-api.js\` → JSON → \`handfish-design/scripts/regenerate-canonical-api.js\` → this file`)
 out.push('')
 out.push('When this file disagrees with `components.md` or another reference, **this file wins** — components.md may have drifted; this is mechanically derived from source.')
@@ -241,12 +295,31 @@ out.push(themesSection(data.themes))
 
 out.push('## Public exports from `src/index.js`')
 out.push('')
-out.push('Importing any of these via `import { X } from \'handfish\'` is the supported entry point. The list below is the complete set as of the generation timestamp.')
+out.push('Importing any of these via `import { X } from \'handfish\'` is the supported entry point. The list below is the complete set as of the handfish commit above.')
 out.push('')
 out.push(data.index_exports.map(e => `- \`${e}\``).join('\n'))
 out.push('')
 
-writeFileSync(outputPath, out.join('\n') + '\n')
+const rendered = out.join('\n') + '\n'
+
+if (checkOnly) {
+    if (!existsSync(outputPath)) {
+        console.error(`Missing: ${outputPath}`)
+        console.error('Run: node scripts/regenerate-canonical-api.js')
+        process.exit(1)
+    }
+    const onDisk = readFileSync(outputPath, 'utf8')
+    if (onDisk !== rendered) {
+        console.error(`Stale: ${outputPath}`)
+        console.error(summariseDrift(onDisk, rendered))
+        console.error('Run: node scripts/regenerate-canonical-api.js')
+        process.exit(1)
+    }
+    console.log(`✓ Up to date: ${outputPath}`)
+    process.exit(0)
+}
+
+writeFileSync(outputPath, rendered)
 
 console.log(`✓ Wrote ${outputPath}`)
 console.log(`  ${data.custom_elements.length} custom elements`)

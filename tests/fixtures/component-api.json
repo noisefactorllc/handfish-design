@@ -1,0 +1,80 @@
+{
+  "meta": {
+    "handfish_version": "9.99",
+    "note": "Fixture for handfish-design's regeneration tests. Mirrors the shape of handfish/docs/component-api.json; the values are invented."
+  },
+  "custom_elements": [
+    {
+      "kind": "custom-element",
+      "tag": "fixture-switch",
+      "className": "FixtureSwitch",
+      "directory": "fixture-switch",
+      "sourceFile": "src/components/fixture-switch/FixtureSwitch.js",
+      "formAssociated": true,
+      "observedAttributes": ["checked", "disabled"],
+      "events": [
+        { "name": "change", "type": "Event" },
+        { "name": "toggle", "type": "CustomEvent", "detailKeys": ["checked", "source"] },
+        { "name": "opaque", "type": "CustomEvent" }
+      ],
+      "description": "A fixture switch.\nSecond line of description."
+    },
+    {
+      "kind": "custom-element",
+      "tag": "fixture-item",
+      "className": "FixtureItem",
+      "directory": "fixture-menu",
+      "sourceFile": "src/components/fixture-menu/FixtureMenu.js",
+      "registeredBy": "fixture-menu",
+      "observedAttributes": [],
+      "events": [],
+      "formAssociated": false,
+      "description": "Registered by <fixture-menu> — see that entry."
+    },
+    {
+      "kind": "custom-element",
+      "tag": "fixture-plain",
+      "className": "FixturePlain",
+      "directory": "fixture-plain",
+      "sourceFile": "src/components/fixture-plain/FixturePlain.js",
+      "formAssociated": false,
+      "observedAttributes": [],
+      "events": []
+    }
+  ],
+  "classes": [
+    {
+      "kind": "class",
+      "className": "FixtureDialog",
+      "extends": null,
+      "directory": "fixture-dialog",
+      "sourceFile": "src/components/fixture-dialog/FixtureDialog.js",
+      "description": "A plain class, not an element."
+    }
+  ],
+  "utility_modules": {
+    "fixtureUtil": {
+      "sourceFile": "src/utils/fixtureUtil.js",
+      "exports": ["doThing", "undoThing"]
+    }
+  },
+  "toast_helpers": {
+    "kind": "utility-functions",
+    "directory": "toast",
+    "sourceFile": "src/components/toast/Toast.js",
+    "exports": ["showToast", "showError"],
+    "defaults": {
+      "showToast": { "duration": 2000 },
+      "showError": { "duration": 6000 }
+    }
+  },
+  "themes": {
+    "count_files": 2,
+    "count_data_theme_values": 3,
+    "entries": [
+      { "file": "alpha.css", "dataThemeValues": ["alpha"] },
+      { "file": "beta.css", "dataThemeValues": ["beta", "beta-light"] }
+    ]
+  },
+  "index_exports": ["FixtureSwitch", "FixtureDialog", "showToast"]
+}

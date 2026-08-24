@@ -220,6 +220,8 @@ If a change is risky (large refactor, new theming logic), you can pin a specific
 
 This skill ships a hand-written reference set (`components.md`, `tokens.md`, etc.) plus one machine-generated reference (`api-canonical.md`) that captures the source-derived component APIs. Hand-written docs can drift; the canonical reference cannot. **When handfish ships a new minor or patch version, regenerate the canonical reference.**
 
+You do not have to notice on your own. `npm test` checks both surfaces that drift — the canonical reference, and the tag list in `SKILL.md`'s `description` frontmatter that decides whether this skill activates at all — and a weekly CI job runs the same checks against handfish `main`. `npm run check` answers "is the reference current?" on its own without writing anything.
+
 ### Regeneration workflow
 
 ```bash
@@ -237,7 +239,15 @@ node scripts/regenerate-canonical-api.js
 
 # 4. Diff and review
 git -C ~/platform/handfish-design diff skills/handfish-design/references/api-canonical.md
+
+# 5. Confirm both drift checks are clean
+npm test
 ```
+
+The generator is deterministic: the same JSON always yields byte-identical
+markdown, and provenance comes from git rather than a wall clock. So step 4
+showing an empty diff genuinely means nothing changed — it is not a timestamp
+churning.
 
 ### What to do after regeneration
 
@@ -249,7 +259,9 @@ Read the diff. For each change in `api-canonical.md`:
 - **Toast helper default duration changed.** Update `utilities.md` and the durations table.
 - **New theme files or `data-theme` values.** Update the catalog table in `theming.md` and the count narrative in `README.md` / `plugin.json`.
 
-After updating, also bump the source-of-truth anchor in `README.md` to point at the new handfish version + commit SHA. That single line is what tells future readers (and Claude) when this skill was last audited.
+- **New custom element registered.** Add its tag to the `description` frontmatter in `SKILL.md` and to the trigger list in `README.md`. This is the one that bites hardest: an element missing from `description` means the skill never loads for anyone working on it, so they get no handfish guidance at all. `npm test` names any tag you missed.
+
+The provenance block at the top of `api-canonical.md` records which handfish commit it was generated from, so there is no separate anchor line in `README.md` to keep in sync by hand.
 
 ### Why two scripts, not one
 

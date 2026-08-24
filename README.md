@@ -8,7 +8,7 @@ When activated, it teaches Claude handfish's conventions (light-DOM style inject
 
 - **Loads handfish conventions on demand**: when you start working on a web app that imports `handfish` or references `--hf-*` variables, Claude pulls in the relevant references.
 - **Enforces token discipline**: catches hardcoded colors, spacings, radii, and shadows; rewrites them to design tokens.
-- **Knows the component catalog**: 21 custom elements plus the AboutDialog class and the toast / tooltip / escape / keyboard-shortcut utility families — with their tag names, events, attributes, and form-association behavior.
+- **Knows the component catalog**: 21 custom elements plus the AboutDialog class and the toast / tooltip / escape / keyboard-shortcut utility families — with their tag names, events, attributes, and form-association behavior. The catalog is checked against handfish rather than remembered; see "Staying current" below.
 - **Guides theme switching**: 17 theme stylesheets covering 20 `data-theme` values (some files declare both dark/light variants), plus the two default modes. The skill knows how each one re-skins the token layer.
 - **Models the styling layer correctly**: handfish injects styles into the document head — components participate in the global cascade. The skill teaches override-by-specificity instead of `!important` or Shadow DOM hacks.
 - **Bridges color spaces**: when you need to convert between RGB / HSV / OkLab / OKLCH / hex, the skill points to the right utility instead of letting Claude reinvent it.
@@ -65,25 +65,55 @@ The plugin includes domain-specific reference documents that Claude loads contex
 | `tokens.md` | The full `--hf-*` token catalog, OKLCH color format, semantic vs. primitive tokens, the `--hf-led-*` readout palette, why hardcoding breaks themes |
 | `theming.md` | The 17 built-in themes, `data-theme` switching, building a custom theme, dark/light variants, preventing FOUC, and the theme / language / direction axes |
 | `components.md` | Hand-written prose for the 21 custom elements + AboutDialog class + helper utility families: usage patterns, examples, gotchas, anti-patterns |
-| **`api-canonical.md`** | **Machine-generated source-of-truth reference** — attribute names, event types, event detail payloads, form-association status, toast defaults. Regenerated from handfish source on every release; wins when it disagrees with `components.md`. |
+| **`api-canonical.md`** | **Machine-generated source-of-truth reference** — attribute names, event types, event detail payloads, form-association status, toast defaults. Generated deterministically from handfish source, verified by `npm run check`; wins when it disagrees with `components.md`. |
 | `styling.md` | Light-DOM style injection model, overriding component styles by specificity, logical vs. physical CSS for RTL, why `!important` and Shadow DOM workarounds are banned |
 | `i18n.md` | Bidi/RTL readiness: setting `dir`, per-component overridable strings, logical CSS, `<bdi>` isolation — and the line between what handfish provides and what the app owns (translation) |
 | `color.md` | Color conversion utilities (`rgbToHex`, `parseHex`, OkLab/OKLCH math), the 0–255 vs OKLCH conventions |
 | `utilities.md` | Toasts (defaults, real options, `dismissLabel`), the stack-based escape handler, tooltip initialization (`class="tooltip"` + `data-title`), platform-aware shortcut formatting (`formatShortcut`) |
 | `contributing.md` | Adding a new component to handfish itself + the canonical-reference regeneration workflow for skill maintainers |
 
-## Source-of-truth anchor
+## Staying current
 
 This skill was last audited on **2026-08-12** against **handfish `0.10`** at HEAD commit [`9bbb287`](https://github.com/noisefactorllc/handfish/commit/9bbb287). That audit was a full-coverage pass bringing the skill up to date with the industrial components (`knob-dial`, `led-matrix`, `tempo-bar`), `menu-bar`, the Seance collaboration set (`seance-dialog`, `session-status`, `join-session-dialog`), the code-editor collaboration APIs, bidi/RTL readiness, and the `shortcuts` utilities. The machine-generated `references/api-canonical.md` carries its own provenance — its JSON was last regenerated at commit [`d8d350c`](https://github.com/noisefactorllc/handfish/commit/d8d350c) (2026-07-28), the commit that last changed the extracted API surface.
 
-When handfish ships a new minor or major version:
+handfish ships components on its own cadence, and nothing about this repo
+changes when it does — which is exactly how a plugin ends up teaching Claude a
+catalog that is missing a third of the library. Two surfaces drift, and both
+are now checked rather than remembered:
 
-1. In the handfish repo, run `node scripts/generate-component-api.js` to refresh `docs/component-api.json`.
-2. In this repo, run `node scripts/regenerate-canonical-api.js` to refresh `references/api-canonical.md`.
-3. Diff the result; update prose in `components.md` and other references for any API that changed (renamed attribute, removed event, etc.).
-4. Bump the version + commit pin in this section.
+- `references/api-canonical.md` — generated from handfish's machine-extracted
+  `docs/component-api.json`.
+- The `description` frontmatter in `skills/handfish-design/SKILL.md` — the
+  activation trigger. A tag missing here means nobody working on that
+  component gets handfish guidance at all.
 
-See `skills/handfish-design/references/contributing.md` § "Maintaining this skill" for the full workflow.
+```bash
+npm test          # both drift checks, plus the generator's own behaviour
+npm run check     # is api-canonical.md current? (read-only, exits non-zero if not)
+npm run regenerate
+```
+
+The drift checks need a sibling handfish checkout at `../handfish`; without one
+they skip, so the suite still runs standalone. CI mirrors that split: the `test`
+job gates changes to this repo with the drift checks skipped, so an unrelated PR
+never goes red because handfish shipped something that morning. A separate
+weekly `drift` job clones handfish and runs them live.
+
+The generator's output is deterministic — the same input always produces
+byte-identical output, and provenance comes from git rather than a wall clock.
+An empty diff therefore means nothing changed, which is what makes the check
+possible at all.
+
+When handfish ships something new:
+
+1. `cd ../handfish && git pull && node scripts/generate-component-api.js`
+2. `npm run regenerate` here, and review the diff.
+3. Add any new tags to the `description` in `SKILL.md` (`npm test` names the
+   missing ones).
+4. Update prose in `components.md` for anything whose API changed.
+
+See `skills/handfish-design/references/contributing.md` § "Maintaining this
+skill" for the full workflow.
 
 ## License
 
