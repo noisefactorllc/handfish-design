@@ -1,3 +1,8 @@
+<!-- repo-hero -->
+<a href="https://handfish.noisefactor.io/"><img src="docs/hero.jpg" alt="Handfish Design Claude Code plugin for the Handfish design system" width="100%"></a>
+
+<sub>Open source from <a href="https://noisefactor.io">Noise Factor</a> &middot; <a href="https://github.com/noisefactorllc">more projects</a></sub>
+
 # Handfish Design
 
 A Claude Code plugin that turns Claude into an expert on the [Handfish Design System](https://handfish.noisefactor.io) — the Web Components + OKLCH design tokens that power Noisedeck, Tetra, and the rest of the Noise Factor product family.
