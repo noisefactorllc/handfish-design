@@ -5,18 +5,18 @@
 
 # Handfish Design
 
-A Claude Code plugin that turns Claude into an expert on the [Handfish Design System](https://handfish.noisefactor.io) — the Web Components + OKLCH design tokens that power Noisedeck, Tetra, and the rest of the Noise Factor product family.
+A Claude Code plugin for the [Handfish Design System](https://handfish.noisefactor.io). Handfish provides Web Components and OKLCH design tokens for Noisedeck, Tetra, and other Noise Factor products.
 
-When activated, it teaches Claude handfish's conventions (light-DOM style injection, `--hf-*` token discipline, form-associated components, the 17-theme system) and prevents the most common mistakes — hardcoded colors, `!important` overrides, Shadow DOM workarounds, missing event semantics.
+The plugin teaches light-DOM style injection, `--hf-*` token use, form-associated components, and the 17-theme system. It prevents common mistakes with hardcoded colors, `!important`, Shadow DOM workarounds, and event semantics.
 
 ## What it does
 
-- **Loads handfish conventions on demand**: when you start working on a web app that imports `handfish` or references `--hf-*` variables, Claude pulls in the relevant references.
-- **Enforces token discipline**: catches hardcoded colors, spacings, radii, and shadows; rewrites them to design tokens.
-- **Knows the component catalog**: 21 custom elements plus the AboutDialog class and the toast / tooltip / escape / keyboard-shortcut utility families — with their tag names, events, attributes, and form-association behavior. The catalog is checked against handfish rather than remembered; see "Staying current" below.
+- **Loads handfish conventions on demand**: Claude loads relevant references when you work on an app that imports `handfish` or uses `--hf-*`.
+- **Enforces token discipline**: catches hardcoded colors, spacings, radii, and shadows. Rewrites them to design tokens.
+- **Knows the component catalog**: 21 custom elements, the AboutDialog class, and the toast, tooltip, escape, and keyboard-shortcut utilities. The references cover tag names, events, attributes, and form-association behavior. Tests check the catalog against handfish. See "Staying current" below.
 - **Guides theme switching**: 17 theme stylesheets covering 20 `data-theme` values (some files declare both dark/light variants), plus the two default modes. The skill knows how each one re-skins the token layer.
 - **Models the styling layer correctly**: handfish injects styles into the document head — components participate in the global cascade. The skill teaches override-by-specificity instead of `!important` or Shadow DOM hacks.
-- **Bridges color spaces**: when you need to convert between RGB / HSV / OkLab / OKLCH / hex, the skill points to the right utility instead of letting Claude reinvent it.
+- **Bridges color spaces**: directs Claude to existing utilities for RGB / HSV / OkLab / OKLCH / hex conversion.
 - **Walks contributors through adding a new component**: directory layout, style injection pattern, exports, examples page, visual regression baselines.
 
 ## Install
@@ -50,7 +50,7 @@ The skill triggers whenever Claude is doing web work that touches:
 
 - Imports from `handfish` or `@noisedeck/handfish`
 - `--hf-*` CSS variables in stylesheets or inline styles
-- Any handfish custom element: `<toggle-switch>`, `<slider-value>`, `<select-dropdown>`, `<dropdown-menu>`, `<dropdown-item>`, `<color-picker>`, `<color-wheel>`, `<color-swatch>`, `<gradient-stops>`, `<vector2d-picker>`, `<vector3d-picker>`, `<justify-button-group>`, `<code-editor>`, `<image-magnifier>`, `<knob-dial>`, `<led-matrix>`, `<tempo-bar>`, `<menu-bar>`, `<seance-dialog>`, `<session-status>`, `<join-session-dialog>`
+- Any handfish custom element: `<toggle-switch>`, `<slider-value>`, `<select-dropdown>`, `<dropdown-menu>`, `<dropdown-item>`, `<color-picker>`, `<color-wheel>`, `<color-swatch>`, `<gradient-stops>`, `<vector2d-picker>`, or `<vector3d-picker>`. This also includes `<justify-button-group>`, `<code-editor>`, `<image-magnifier>`, `<knob-dial>`, `<led-matrix>`, `<tempo-bar>`, `<menu-bar>`, `<seance-dialog>`, `<session-status>`, and `<join-session-dialog>`.
 - The `AboutDialog` JS class (constructed with `new AboutDialog({...})`, then `.show()`)
 - Toast helpers (`showToast`, `showSuccess`, `showError`, `showWarning`, `showInfo`)
 - Tooltip initialization (`initializeTooltips`, `class="tooltip"` + `data-title` attribute)
@@ -70,16 +70,16 @@ The plugin includes domain-specific reference documents that Claude loads contex
 | `tokens.md` | The full `--hf-*` token catalog, OKLCH color format, semantic vs. primitive tokens, the `--hf-led-*` readout palette, why hardcoding breaks themes |
 | `theming.md` | The 17 built-in themes, `data-theme` switching, building a custom theme, dark/light variants, preventing FOUC, and the theme / language / direction axes |
 | `components.md` | Hand-written prose for the 21 custom elements + AboutDialog class + helper utility families: usage patterns, examples, gotchas, anti-patterns |
-| **`api-canonical.md`** | **Machine-generated source-of-truth reference** — attribute names, event types, event detail payloads, form-association status, toast defaults. Generated deterministically from handfish source, verified by `npm run check`; wins when it disagrees with `components.md`. |
+| **`api-canonical.md`** | **Machine-generated source-of-truth reference** — attribute names, event types, event detail payloads, form-association status, toast defaults. Generated deterministically from handfish source, checked by `npm run check`. Wins when it disagrees with `components.md`. |
 | `styling.md` | Light-DOM style injection model, overriding component styles by specificity, logical vs. physical CSS for RTL, why `!important` and Shadow DOM workarounds are banned |
-| `i18n.md` | Bidi/RTL readiness: setting `dir`, per-component overridable strings, logical CSS, `<bdi>` isolation — and the line between what handfish provides and what the app owns (translation) |
+| `i18n.md` | Bidi/RTL support, `dir`, overridable strings, logical CSS, and `<bdi>` isolation. Handfish provides component support. Apps provide translations. |
 | `color.md` | Color conversion utilities (`rgbToHex`, `parseHex`, OkLab/OKLCH math), the 0–255 vs OKLCH conventions |
 | `utilities.md` | Toasts (defaults, real options, `dismissLabel`), the stack-based escape handler, tooltip initialization (`class="tooltip"` + `data-title`), platform-aware shortcut formatting (`formatShortcut`) |
 | `contributing.md` | Adding a new component to handfish itself + the canonical-reference regeneration workflow for skill maintainers |
 
 ## Staying current
 
-This skill was last audited on **2026-08-12** against **handfish `0.10`** at HEAD commit [`9bbb287`](https://github.com/noisefactorllc/handfish/commit/9bbb287). That audit was a full-coverage pass bringing the skill up to date with the industrial components (`knob-dial`, `led-matrix`, `tempo-bar`), `menu-bar`, the Seance collaboration set (`seance-dialog`, `session-status`, `join-session-dialog`), the code-editor collaboration APIs, bidi/RTL readiness, and the `shortcuts` utilities. The machine-generated `references/api-canonical.md` carries its own provenance — its JSON was last regenerated at commit [`d8d350c`](https://github.com/noisefactorllc/handfish/commit/d8d350c) (2026-07-28), the commit that last changed the extracted API surface.
+The last API audit was **2026-08-12**, against **handfish `0.10`** at HEAD commit [`9bbb287`](https://github.com/noisefactorllc/handfish/commit/9bbb287). It covered all industrial components (`knob-dial`, `led-matrix`, `tempo-bar`), `menu-bar`, and the Seance components (`seance-dialog`, `session-status`, `join-session-dialog`). It also covered code-editor collaboration APIs, bidi/RTL support, and `shortcuts` utilities. The generated `references/api-canonical.md` records separate provenance. Its JSON last changed at commit [`d8d350c`](https://github.com/noisefactorllc/handfish/commit/d8d350c) on 2026-07-28, when the extracted API last changed.
 
 handfish ships components on its own cadence, and nothing about this repo
 changes when it does — which is exactly how a plugin ends up teaching Claude a
@@ -98,7 +98,7 @@ npm run check     # is api-canonical.md current? (read-only, exits non-zero if n
 npm run regenerate
 ```
 
-The drift checks need a sibling handfish checkout at `../handfish`; without one
+The drift checks need a sibling handfish checkout at `../handfish`. Without one
 they skip, so the suite still runs standalone. CI mirrors that split: the `test`
 job gates changes to this repo with the drift checks skipped, so an unrelated PR
 never goes red because handfish shipped something that morning. A separate

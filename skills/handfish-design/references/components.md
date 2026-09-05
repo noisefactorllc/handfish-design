@@ -2,12 +2,12 @@
 
 The handfish catalog: 21 custom elements plus a small set of helper APIs (toasts, tooltips, escape handler, keyboard-shortcut formatting, About dialog). Each entry covers the tag (or import), the attributes you'll set, the events you'll listen for, and form-association behavior.
 
-> **Localizing built-in strings:** several components ship English defaults for their built-in UI text (`<select-dropdown>`'s "Select…" placeholder, `<justify-button-group>`'s button tooltips, `<seance-dialog>`'s collaboration labels, `AboutDialog`'s field labels, the toast dismiss button's `aria-label`). Every one is overridable via an attribute or config option — the app owns translation. See `references/i18n.md` for the full bidi/RTL story and the per-component override attributes gathered in one place.
+> **Localizing built-in strings:** Several components provide English defaults that the app can override through attributes or configuration. These include `<select-dropdown>` placeholders, `<justify-button-group>` tooltips, `<seance-dialog>` collaboration labels, `AboutDialog` field labels, and toast dismiss `aria-label` values. The app provides translations. See `references/i18n.md` for bidi/RTL support and the override catalog.
 
-> **Authoritative source:** `api-canonical.md` (sibling file) is mechanically generated from the handfish source on every release. If this file and `api-canonical.md` disagree on an attribute name, event type, event detail keys, or form-association status, **`api-canonical.md` wins** — this file is hand-written prose and may drift; that one cannot.
+> **Authoritative source:** Each release generates `api-canonical.md` from handfish source. It takes precedence for attribute names, event types, event detail keys, and form-association status. This file contains hand-written prose and may drift. The generated reference avoids that drift.
 >
 > Use this file for: how to use each component, examples, when to reach for what, gotchas, anti-patterns.
-> Use `api-canonical.md` for: verifying you're reading the right attribute, listening for the right event, expecting the right `event.detail` keys.
+> Use `api-canonical.md` for: checking you're reading the right attribute, listening for the right event, expecting the right `event.detail` keys.
 
 ## How handfish components work
 
@@ -31,10 +31,10 @@ toggle.checked = true
 document.body.appendChild(toggle)
 ```
 
-A few conventions show up across the catalog, but they are not universal — verify per component:
+A few conventions show up across the catalog, but they are not universal — check per component:
 
-- **Attribute / property parity is common but not guaranteed.** Most components reflect their `observedAttributes` to JS properties; a few don't, or use a different name (e.g., `<color-swatch>` uses `color` as the attribute, exposes `.color` and not `.value`). Prefer reading via the property after setting via the attribute, or just stick to attributes.
-- **`input` and `change` semantics vary per component.** The convention "input for continuous, change for committed" is the design intent, but several components (notably `<slider-value>`) fire both on every change. The catalog notes any deviations per entry; default to consulting the per-component section before assuming `change` is debounced.
+- **Attribute / property parity is common but not guaranteed.** Most components reflect `observedAttributes` to JS properties. Some omit properties or use different names. For example, `<color-swatch>` exposes the `color` attribute and `.color` property, but no `.value`. Prefer reading the property after setting the attribute, or use attributes exclusively.
+- **`input` and `change` semantics vary per component.** The design intent is continuous `input` and committed `change`. Several components, notably `<slider-value>`, fire both for every change. Check the relevant catalog entry before assuming that `change` is debounced.
 - **Event payloads vary.** Some components dispatch plain `Event` objects with no `detail` — to get the value, read `el.value` after the event fires. Others dispatch `CustomEvent` with `event.detail`. The catalog notes which.
 - **Form-associated where it makes sense.** Components that hold a value participate in `<form>` submission via `attachInternals()`. `FormData` picks them up by their `name` attribute just like a native `<input>`. Not every component is form-associated — see the per-entry notes.
 - **`disabled` is honored everywhere** that has it as an attribute.
@@ -54,7 +54,7 @@ Slider-style replacement for `<input type="checkbox">`.
 | `checked` | boolean | Initial / current state |
 | `disabled` | boolean | |
 
-Events: `change` — fires on flip. Plain `Event` with no `detail`; read `el.checked`.
+Events: `change` — fires on flip. Plain `Event` with no `detail`. Read `el.checked`.
 
 Form-associated: **no.** ToggleSwitch does not declare `formAssociated` and has no `name` attribute. To use it inside a form, mirror its `checked` state into a hidden `<input type="checkbox" name="...">` on `change`, or just read `el.checked` directly when the form submits.
 
@@ -86,7 +86,7 @@ A range slider plus a value display that the user can also click to type into. U
 | `type` | string | Optional — formatting hint |
 | `format` | string | Optional — display format |
 
-Events: `input` and `change` — both fire on **every** value change (drag, keypress, programmatic set). There is no commit/release distinction in this component; the `_dispatchChange` method fires both events together. If you need debouncing for an expensive handler (network save, etc.), do it in your own listener — don't expect `change` to fire less often than `input`. Both are plain `Event` objects with no `detail`; read `el.value`.
+Events: `input` and `change` both fire on **every** value change, including drags, keypresses, and programmatic changes. `_dispatchChange` fires both events together, without a commit/release distinction. Debounce expensive handlers, such as network saves, in your listener. Do not expect `change` to fire less often. Both events are plain `Event` objects without `detail`. Read `el.value`.
 
 Form-associated: yes.
 
@@ -123,7 +123,7 @@ General-purpose dropdown for selecting one of N options. Supports keyboard navig
 
 The last five attributes exist so the built-in English strings can be localized — set them to translated text for non-English UIs. See `references/i18n.md`.
 
-Events: `change` — plain `Event`; read `el.value`.
+Events: `change` — plain `Event`. Read `el.value`.
 
 Form-associated: yes.
 
@@ -158,7 +158,7 @@ Menu with a button trigger and a list of items. Two modes:
 |-----------|------|-------|
 | `label` | string | Button text |
 | `icon` | string | Material Symbols icon name (e.g., `palette`, `menu`) |
-| `align` | `left` \| `right` \| `start` \| `end` | Where the menu opens. `left`/`right` are physical (fixed regardless of direction); `start`/`end` are **logical** — they flip with text direction. Prefer `start`/`end` for RTL-ready UIs. Default `left`. |
+| `align` | `left` \| `right` \| `start` \| `end` | Where the menu opens. `left`/`right` are physical (fixed regardless of direction). `start`/`end` are **logical** — they flip with text direction. Prefer `start`/`end` for RTL-ready UIs. Default `left`. |
 | `value` | string | Selected item value (selectable mode only) |
 | `disabled` | boolean | |
 
@@ -189,7 +189,7 @@ Comprehensive picker with HSV/OKLCH spaces, hex input, alpha, and recent-colors.
 | `disabled` | boolean | |
 | `name` | string | |
 
-Events: `input` (during interaction) and `change` (on commit). Both are plain `Event` objects with no `detail`; read `el.value` for the hex string.
+Events: `input` (during interaction) and `change` (on commit). Both are plain `Event` objects with no `detail`. Read `el.value` for the hex string.
 
 Form-associated: yes.
 
@@ -217,8 +217,8 @@ Form-associated. Use when you want spatial color selection without the rest of `
 | `name` | string | |
 
 Events:
-- `input` — plain `Event` during interaction; read `el.value`.
-- `change` — plain `Event` on commit; read `el.value`.
+- `input` — plain `Event` during interaction. Read `el.value`.
+- `change` — plain `Event` on commit. Read `el.value`.
 - `colorinput` — `CustomEvent` during interaction with `event.detail` carrying the live color payload (richer than `input`).
 
 ### `<color-swatch>` — color preview / selectable tile
@@ -227,7 +227,7 @@ Events:
 import { ColorSwatch } from 'handfish'
 ```
 
-Compact color tile, often used in palettes or recent-colors strips. Click selects the swatch; with `editable`, double-click dispatches an `edit` event so a parent can open a picker. The component does **not** include a built-in picker UI.
+Compact color tile, often used in palettes or recent-colors strips. Click selects the swatch. With `editable`, double-click dispatches an `edit` event so a parent can open a picker. The component does **not** include a built-in picker UI.
 
 | Attribute | Type | Notes |
 |-----------|------|-------|
@@ -242,7 +242,7 @@ Events:
 - `select` — `CustomEvent` on click (or Enter/Space when focused). `event.detail = { color, rgb }`.
 - `edit` — `CustomEvent` on **double-click** when `editable` is set. `event.detail = { color, rgb }`. The consumer must open its own picker in response — no picker is built in.
 
-The `rgb` value in both event details is a `[r, g, b]` array of 0–1 floats — note this is different from the `{r, g, b}` 0–255 format used by handfish's other color utilities. To round-trip into the standard format, use `{ r: rgb[0]*255, g: rgb[1]*255, b: rgb[2]*255 }`.
+Both event details contain `rgb` as a `[r, g, b]` array of 0–1 floats. Other handfish color utilities use `{r, g, b}` objects with values from 0–255. Convert with `{ r: rgb[0]*255, g: rgb[1]*255, b: rgb[2]*255 }`.
 
 Form-associated: no. Pair with a hidden input or read `el.color` directly when serializing.
 
@@ -270,7 +270,7 @@ Events (all `CustomEvent`):
 - `change` — on drag commit. `event.detail = { index, positions }` (note: no top-level `position`).
 - `delete` — when the user removes a stop. `event.detail = { index, positions, colors }` (the remaining stops, useful for re-rendering the consumer's gradient preview).
 
-Note that color changes happen via separate methods (the user opens a picker per stop); track them by listening for the picker's events, not by listening for `change` on `<gradient-stops>` (which is position-only).
+Color changes use separate methods, with a picker for each stop. Track them through the picker's events. `<gradient-stops>` `change` events report position changes only.
 
 ### `<vector2d-picker>` — 2D vector input
 
@@ -314,7 +314,7 @@ Three-axis controls for a 3D vector (x, y, z). Form-associated. Often used for s
 
 Events: `input` and `change` — plain `Event` objects with no `detail`.
 
-Same value asymmetry as the 2D variant: HTML attribute is the string `"x,y,z"`; JS property is `{x, y, z}`. Read via `el.value.x` / `el.value.y` / `el.value.z`.
+Same value asymmetry as the 2D variant: HTML attribute is the string `"x,y,z"`. JS property is `{x, y, z}`. Read via `el.value.x` / `el.value.y` / `el.value.z`.
 
 ### `<justify-button-group>` — left/center/right segmented control
 
@@ -322,7 +322,7 @@ Same value asymmetry as the 2D variant: HTML attribute is the string `"x,y,z"`; 
 import { JustifyButtonGroup } from 'handfish'
 ```
 
-Three hardcoded buttons for `left` / `center` / `right` alignment, with Material Symbols icons. Not generic — there is no `options` attribute. Use it for justification UIs; for other 3-way enums, build a similar component yourself.
+Three hardcoded buttons for `left` / `center` / `right` alignment, with Material Symbols icons. Not generic — there is no `options` attribute. Use it for justification UIs. For other 3-way enums, build a similar component yourself.
 
 | Attribute | Type | Notes |
 |-----------|------|-------|
@@ -333,7 +333,7 @@ Three hardcoded buttons for `left` / `center` / `right` alignment, with Material
 | `center-label` | string | `title`/tooltip for the center button. Default `"Align center"` |
 | `right-label` | string | `title`/tooltip for the right button. Default `"Align right"` |
 
-The three `*-label` attributes localize the buttons' hover/accessible text — the icons and `value` semantics (`left`/`center`/`right`) stay physical and unchanged. Note that in an RTL context the *icons* do not auto-mirror; the values remain literal left/center/right. See `references/i18n.md`.
+The three `*-label` attributes localize the buttons' hover/accessible text — the icons and `value` semantics (`left`/`center`/`right`) stay physical and unchanged. Note that in an RTL context the *icons* do not auto-mirror. The values remain literal left/center/right. See `references/i18n.md`.
 
 Events:
 - `change` — plain `Event` on selection. Read `el.value`.
@@ -347,7 +347,7 @@ Form-associated: yes.
 import { CodeEditor, EDITOR_THEMES, THEME_KEYS, applyEditorTheme, applyEditorThemeGlobal, dslTokenizer } from 'handfish'
 ```
 
-In-browser code editor with pluggable tokenizers. `dslTokenizer` is included; supply your own for arbitrary languages.
+In-browser code editor with pluggable tokenizers. `dslTokenizer` is included. Supply your own for arbitrary languages.
 
 Observed attributes:
 
@@ -363,19 +363,19 @@ Observed attributes:
 | `line-numbers` | boolean | Show line-number gutter |
 
 Events:
-- `input` — `CustomEvent` on every edit. `event.detail = { value, previousValue, edit, source }`. `edit` is `{ start, end, text }` (the splice that was applied); `source` is `'user'` for typing, or the caller-supplied source (default `'api'`) for programmatic edits via `replaceRange`/`applyTextEdit`. Use `source` to keep from echoing your own remote edits back over the wire.
+- `input` — `CustomEvent` on every edit. `event.detail = { value, previousValue, edit, source }`. `edit` describes the applied splice as `{ start, end, text }`. `source` is `'user'` for typing. For `replaceRange`/`applyTextEdit`, it is the caller-supplied source, defaulting to `'api'`. Use `source` to avoid sending received remote edits again.
 - `selectionchange` — `CustomEvent` when the caret/selection moves. `event.detail = { start, end, direction, value }`.
-- `forcerecompile` — `CustomEvent` on **Ctrl/Cmd+Enter**. The signal to recompile/run the whole buffer. No `detail`; read `el.value`.
-- `forceevalblock` — `CustomEvent` on **Alt+Enter** (or Ctrl/Cmd+Shift+Enter). The signal to evaluate just the current block/line. No `detail`; the consumer decides what "block" means and reads `el.value` + `getSelectionRange()`.
+- `forcerecompile` — `CustomEvent` on **Ctrl/Cmd+Enter**. The signal to recompile/run the whole buffer. No `detail`. Read `el.value`.
+- `forceevalblock` — `CustomEvent` on **Alt+Enter** (or Ctrl/Cmd+Shift+Enter). The signal to evaluate just the current block/line. No `detail`. The consumer decides what "block" means and reads `el.value` + `getSelectionRange()`.
 
-Editor themes are independent from the page theme — they style syntax tokens specifically. Use `applyEditorTheme(editor, themeName)` to switch one editor, or `applyEditorThemeGlobal(themeName)` to switch every editor on the page. `THEME_KEYS` is the array of available editor theme names; `EDITOR_THEMES` is the keyed object.
+Editor themes are independent from the page theme — they style syntax tokens specifically. Use `applyEditorTheme(editor, themeName)` to switch one editor, or `applyEditorThemeGlobal(themeName)` to switch every editor on the page. `THEME_KEYS` is the array of available editor theme names. `EDITOR_THEMES` is the keyed object.
 
 **Collaboration API (remote cursors, programmatic edits, line flashing).** `<code-editor>` is transport-agnostic — it owns no networking. A collaboration host drives it through these methods and renders whatever it pushes:
 
-- `replaceRange(start, end, text, opts)` / `applyTextEdit({start, end, text}, opts)` — apply a programmatic edit. Pass `{ emitInput: true, source: 'remote' }` to fire an `input` tagged with your source (so you can ignore it on the round trip); `opts.select` (default `'preserve'`) controls where the caret lands.
+- `replaceRange(start, end, text, opts)` / `applyTextEdit({start, end, text}, opts)` apply programmatic edits. Pass `{ emitInput: true, source: 'remote' }` to emit `input` with your source. You can then ignore that event when it returns. `opts.select`, default `'preserve'`, controls caret placement.
 - `getSelectionRange()` / `setSelectionRange(start, end, direction)` — read/write the local selection.
-- `setRemoteSelections([...])`, `setRemoteSelection(sel)`, `clearRemoteSelection(id)`, `clearRemoteSelections()` — render other users' cursors/selections. Each entry is `{ id, label, color, start, end }` — `color` is a CSS color string (default `#5a7fdd`) from which the component derives the cursor/selection palette internally (don't pass a `palette`; it's computed). Each shows as a labeled remote caret.
-- `flashLines(startLine, endLine, { tone })` — briefly highlight a 1-based line range; `tone` is `'eval'` (default), `'error'`, or `'remote'`. Use it to flash an evaluated block or a collaborator's applied edit.
+- `setRemoteSelections([...])`, `setRemoteSelection(sel)`, `clearRemoteSelection(id)`, and `clearRemoteSelections()` render other users' cursors and selections. Each entry is `{ id, label, color, start, end }`. `color` is a CSS string, defaulting to `#5a7fdd`. The component calculates the cursor and selection palette internally. Do not pass a `palette`. Each selection shows a labeled remote caret.
+- `flashLines(startLine, endLine, { tone })` — briefly highlight a 1-based line range. `tone` is `'eval'` (default), `'error'`, or `'remote'`. Use it to flash an evaluated block or a collaborator's applied edit.
 - `setTokenizer(fn)`, `getTextarea()`, `getDisplay()` — swap the tokenizer at runtime / reach the underlying nodes.
 
 Form-associated: no (custom value handling).
@@ -412,9 +412,9 @@ API: `magnifier.attach(canvas)` to bind, `magnifier.detach()` to release, `magni
 
 ## Industrial components
 
-Three instrument-style controls for utilitarian / hardware-like UIs (mixers, sequencers, MIDI tooling). They inject their own styles like every other component and work with `index.css` alone. They read `--hf-*` tokens, so they theme normally; `<led-matrix>` additionally reads a small `--hf-led-*` palette (with built-in fallbacks).
+Three instrument-style controls for utilitarian / hardware-like UIs (mixers, sequencers, MIDI tooling). They inject their own styles like every other component and work with `index.css` alone. They read `--hf-*` tokens, so they theme normally. `<led-matrix>` additionally reads a small `--hf-led-*` palette (with built-in fallbacks).
 
-Note the naming: the **industrial "design language"** — an alternate *typeface* layer (Atkinson Hyperlegible) plus the `.hf-topbar` / `.hf-logotype` chrome — is a separate opt-in stylesheet (`industrial.css`) activated with `data-language="industrial"` on `<html>`. That typeface layer is orthogonal to these three components; you can use the components without it and vice-versa. See `references/setup.md`.
+The industrial "design language" is a separate typeface layer. It adds Atkinson Hyperlegible, `.hf-topbar`, and `.hf-logotype` through `industrial.css`. Activate it with `data-language="industrial"` on `<html>`. The typeface layer and industrial components work independently. See `references/setup.md`.
 
 ### `<knob-dial>` — rotary knob / encoder
 
@@ -424,17 +424,17 @@ import { KnobDial } from 'handfish'
 
 A rotary knob with two interaction models, chosen per instance (a UI can mix both):
 
-- **absolute** (default) — a bounded pot. Normalized value `0..1`, shown as a value-arc ring, a pointer, and the formatted value inside the cap. Drag / wheel / arrow keys set the value; double-click resets to the default. Map `0..1` to real units with the `format` **property** (a function): `knob.format = v => String(Math.round(40 + v * 140))`.
-- **endless** (`mode="endless"`) — a relative encoder. No fixed value: drag / wheel / arrows emit `turn` (signed detents); the app owns the state and sets the text inside the cap via the `display` attribute/property. The pointer free-rotates; there is no level ring.
+- **absolute** (default) — a bounded pot. Normalized value `0..1`, shown as a value-arc ring, a pointer, and the formatted value inside the cap. Drag / wheel / arrow keys set the value. Double-click resets to the default. Map `0..1` to real units with the `format` **property** (a function): `knob.format = v => String(Math.round(40 + v * 140))`.
+- **endless** (`mode="endless"`) — a relative encoder. No fixed value: drag / wheel / arrows emit `turn` (signed detents). The app owns the state and sets the text inside the cap via the `display` attribute/property. The pointer free-rotates. There is no level ring.
 
-Both modes: right-click or long-press emits `learn` (for MIDI-learn); a `cc` attribute shows a CC badge; a `selected` attribute draws the accent highlight; `label` sits below; `disabled` dims and disables.
+Both modes: right-click or long-press emits `learn` (for MIDI-learn). A `cc` attribute shows a CC badge. A `selected` attribute draws the accent highlight. `label` sits below. `disabled` dims and disables.
 
 | Attribute | Type | Notes |
 |-----------|------|-------|
 | `value` | number | Normalized `0..1` (absolute mode) |
 | `label` | string | Caption under the knob |
 | `unit` | string | Unit suffix shown with the value |
-| `cc` | string | MIDI CC number; shows a small CC badge |
+| `cc` | string | MIDI CC number. Shows a small CC badge |
 | `mode` | `absolute` \| `endless` | Interaction model. Default `absolute` |
 | `display` | string | Cap text in **endless** mode (app-owned) |
 | `disabled` | boolean | |
@@ -442,12 +442,12 @@ Both modes: right-click or long-press emits `learn` (for MIDI-learn); a `cc` att
 Events (all `CustomEvent`):
 - `input` — live, during a drag (absolute). `event.detail = { value }` (normalized).
 - `change` — on commit (absolute). `event.detail = { value }`.
-- `turn` — a detent step (endless). `event.detail = { delta, ctrl, shift }` (`delta` is the signed step count; `ctrl`/`shift` report modifier keys for fine/coarse handling).
+- `turn` — a detent step (endless). `event.detail = { delta, ctrl, shift }` (`delta` is the signed step count. `ctrl`/`shift` report modifier keys for fine/coarse handling).
 - `press` — a click with no drag (endless). `event.detail = { ctrl }`.
 - `lock` — a double-click (endless).
-- `learn` — right-click / long-press (both modes); wire it to MIDI-learn.
+- `learn` — right-click / long-press (both modes). Wire it to MIDI-learn.
 
-> **Canonical-reference caveat:** `api-canonical.md` lists only `lock`/`learn`/`turn`/`press` for `<knob-dial>`. Its generator can't see `input`/`change` because they're dispatched through an indirection (`_emit(type)`), not a literal event name. Those two events are real (verified in source) — this is the one spot where the prose is *more* complete than the mechanically-extracted file, so trust this section for knob-dial's `input`/`change`.
+> **Canonical-reference caveat:** `api-canonical.md` lists only `lock`/`learn`/`turn`/`press` for `<knob-dial>`. Its generator cannot extract `input`/`change` because `_emit(type)` dispatches them indirectly. Source inspection confirms that both events exist. For these two events, this section is more complete than the generated reference. Use this section for knob-dial's `input`/`change`.
 
 The `format` (absolute) and `display` (endless) hooks are how real-world units reach the cap — the component itself only knows about the normalized value. Form-associated: **no.**
 
@@ -457,7 +457,7 @@ The `format` (absolute) and `display` (endless) hooks are how real-world units r
 import { LedMatrix } from 'handfish'
 ```
 
-A micro-OLED-style inspector screen: a dense 128×32 monochrome pixel grid rendered on a `<canvas>`, for a label + large value + optional pattern preview (a Euclidean onset grid or a bar gauge). Colors are read from CSS custom properties at paint time, each with a built-in fallback:
+The inspector renders a dense 128×32 monochrome pixel grid on a `<canvas>`, resembling a micro-OLED screen. It shows a label, large value, and optional Euclidean onset grid or bar gauge. At paint time, it reads CSS color properties with built-in fallbacks:
 
 | Token | Meaning |
 |-------|---------|
@@ -472,7 +472,7 @@ A micro-OLED-style inspector screen: a dense 128×32 monochrome pixel grid rende
 | `value` | string | Large value readout |
 | `mode` | string | Preview mode (`value`, onset grid, bar gauge) |
 
-Imperative API: `el.show({ label, value, mode, data, playhead })` pushes a full descriptor at once (use this for live updates driven by a clock — `data`/`playhead` have no attribute form). Declarative `label` / `value` / `mode` attributes cover the static case. No events. Form-associated: **no.**
+Imperative API: `el.show({ label, value, mode, data, playhead })` applies a full descriptor. Use it for clock-driven updates because `data` and `playhead` have no attributes. The `label`, `value`, and `mode` attributes cover static use. The component emits no events. Form-associated: **no.**
 
 ### `<tempo-bar>` — transport tempo clock
 
@@ -488,7 +488,7 @@ A compact transport strip: tap-tempo button, editable BPM field, divider dropdow
 | `divider` | number | Beats-per-bar divider. Default 4 |
 | `min-bpm` / `max-bpm` | number | Clamp range. Default 40 / 300 |
 | `storage-key` | string | If set, persists BPM/divider to `localStorage` under this key |
-| `manual` | boolean | Skip auto-start; call `el.start()` yourself |
+| `manual` | boolean | Skip auto-start. Call `el.start()` yourself |
 | `no-divider` | boolean | Hide the divider dropdown |
 | `no-phase` | boolean | Hide the phase-reset button and slider |
 
@@ -499,7 +499,7 @@ Events (all `CustomEvent`):
 - `dividerchange` — divider changed. `event.detail = { divider }`.
 - `beat` — fires each beat. `event.detail = { bpm, beatIndex, beatInBar, barIndex, isDownbeat }`.
 
-To slave other UI to the transport, listen for `beat`; to drive the lights from an *external* clock instead of the internal scheduler, set `manual` and call `showBeat()`. `BeatScheduler` and `computeBarSeconds` are exported for headless use. Form-associated: **no.**
+To slave other UI to the transport, listen for `beat`. To drive the lights from an *external* clock instead of the internal scheduler, set `manual` and call `showBeat()`. `BeatScheduler` and `computeBarSeconds` are exported for headless use. Form-associated: **no.**
 
 ## Application chrome
 
@@ -511,7 +511,9 @@ import { MenuBar } from 'handfish'
 
 The unified top menu bar (File / Edit / View …) shared across the Noise Factor apps. Its styling lives in `menus-and-toolbars.css`, which `index.css` already imports — no extra stylesheet needed.
 
-**Config-driven, not children-driven.** You build the bar by assigning a config object to the `.config` **property** (not by nesting elements). The config lays out menus, items, and inline controls across left / center / right regions. Dynamic fields (labels, `checked`, `disabled`, `hidden`, icons, tooltips, text, `pressed`, `active`, `interactive`) accept either a plain value or a zero-argument function; functions are re-evaluated when a menu opens, after every activation, and on `refresh()` / `update()`. `update(id, patch)` applies overrides that persist until patched again.
+**Configure through the `.config` property.** Assign a configuration object instead of nesting elements. It defines menus, items, and inline controls across left, center, and right regions. Dynamic fields accept a value or a zero-argument function. These fields include labels, `checked`, `disabled`, `hidden`, icons, tooltips, text, `pressed`, `active`, and `interactive`. Functions run when a menu opens, after each activation, and on `refresh()` / `update()`.
+
+`update(id, patch)` applies overrides that persist until another patch.
 
 ```js
 const bar = document.querySelector('menu-bar')
@@ -537,13 +539,13 @@ Events (all `CustomEvent`):
 - `menu-open` — a dropdown opened. `event.detail = { menuId }`.
 - `menu-close` — a dropdown closed. `event.detail = { menuId }`.
 
-> **Security:** like `AboutDialog`, the config is **trusted developer input** — a menu item's `html` is interpolated as HTML and its `attrs` / `classes` are applied verbatim. Never build config fields from user-controlled strings. See `examples/index.html` in the handfish repo for a full config example.
+> **Security:** Configuration must be **trusted developer input**, as with `AboutDialog`. The component inserts item `html` as HTML. It applies `attrs` and `classes` verbatim. Never build configuration fields from user-controlled strings. See the handfish repo's `examples/index.html` for a full example.
 
-`<menu-bar>` registers on the escape stack and uses logical CSS throughout, so it is already RTL-ready; shortcut hints render as plain text (use the `formatShortcut` helper — see `references/utilities.md` — to stay platform-correct). Form-associated: **no.**
+`<menu-bar>` registers on the escape stack and uses logical CSS throughout, so it is already RTL-ready. Shortcut hints render as plain text (use the `formatShortcut` helper — see `references/utilities.md` — to stay platform-correct). Form-associated: **no.**
 
 ## Collaboration (Seance)
 
-Three components for "Seance" real-time collaboration. All are **stateless with respect to networking** — the app owns the session lifecycle and reflects it back through attributes (`state`, `session-id`, `session-url`); the components only emit *intent* events. Every user-facing string is an overridable attribute (see `references/i18n.md`).
+Three components for "Seance" real-time collaboration. All are **stateless with respect to networking** — the app owns the session lifecycle and reflects it back through attributes (`state`, `session-id`, `session-url`). The components only emit *intent* events. Every user-facing string is an overridable attribute (see `references/i18n.md`).
 
 ### `<seance-dialog>` — collaboration session dialog
 
@@ -551,7 +553,7 @@ Three components for "Seance" real-time collaboration. All are **stateless with 
 import { SeanceDialog, SEANCE_LOGO_SVG } from 'handfish'
 ```
 
-The unified modal for going online, joining a session by id, and managing the live session (indicator, share URL, copy, go offline) — laid out like the About dialog, with the Seance logo tinted by the host theme via `currentColor`. `SEANCE_LOGO_SVG` is exported so a trigger button can show a matching graphic.
+This modal manages going online, joining by session id, and the live session's indicator, share URL, copy action, and offline action. Its layout follows the About dialog. The Seance logo uses the host theme through `currentColor`. `SEANCE_LOGO_SVG` lets trigger buttons display a matching graphic.
 
 | Attribute | Notes |
 |-----------|-------|
@@ -618,7 +620,9 @@ about.setEcosystem('Some footer text')
 
 The dialog uses a native `<dialog>` element internally and follows handfish's escape-key conventions (Escape closes it).
 
-`labels` merges over the English defaults (`{ version, build, deployed, noisemakerEngine, local, unavailable }`) — pass translated strings to localize. The dialog HTML-escapes the **dynamic** build/version/deploy values it renders and wraps them in `<bdi dir="auto">`, so mixed-direction data (an English hash inside an Arabic UI) stays correctly isolated. The other config fields (`name`, `tagline`, `ecosystem`, `logo`, `copyright`) are interpolated as **trusted HTML** — the class is designed for developer-supplied content (`logo` is raw SVG markup), so never build those fields from user-controlled strings. See `references/i18n.md`.
+`labels` merges translated strings over the English defaults: `{ version, build, deployed, noisemakerEngine, local, unavailable }`. The dialog HTML-escapes dynamic build, version, and deployment values. It wraps them in `<bdi dir="auto">` to isolate mixed-direction content, such as an English hash in an Arabic UI.
+
+The dialog inserts `name`, `tagline`, `ecosystem`, `logo`, and `copyright` as **trusted HTML**. These fields require developer-supplied content, including raw SVG in `logo`. Never build them from user-controlled strings. See `references/i18n.md`.
 
 ## Helper APIs (not custom elements)
 
@@ -647,7 +651,7 @@ import { initializeTooltips } from 'handfish'
 initializeTooltips()
 ```
 
-After init, any element with **both** `class="tooltip"` and `data-title="..."` (or `aria-label` as fallback for the text) gets a hover tooltip via a single shared `<div>` layer. The class is the activation trigger; `data-title` is just the message source. Forgetting the class is the most common mistake — `data-title` alone produces nothing. See `references/utilities.md`.
+After initialization, elements with `class="tooltip"` and `data-title="..."` receive a hover tooltip through one shared `<div>`. `aria-label` supplies fallback text when `data-title` is absent. The class activates the tooltip. `data-title` alone does not. See `references/utilities.md`.
 
 ### Escape stack — `registerEscapeable` / `unregisterEscapeable`
 
@@ -656,7 +660,7 @@ import { initEscapeHandler, registerEscapeable, unregisterEscapeable } from 'han
 initEscapeHandler()
 ```
 
-Handfish maintains a global LIFO stack of escapeable elements. The topmost one closes on Escape. Built-in components register themselves; custom modals can opt in via `registerEscapeable(el, () => el.close())`. See `references/utilities.md`.
+Handfish maintains a global LIFO stack of escapeable elements. The topmost one closes on Escape. Built-in components register themselves. Custom modals can opt in via `registerEscapeable(el, () => el.close())`. See `references/utilities.md`.
 
 ### Color conversion utilities
 
@@ -670,7 +674,7 @@ import { formatShortcut, isMacPlatform } from 'handfish'
 formatShortcut('Mod+Shift+Z')  // '⇧⌘Z' on Mac, 'Ctrl+Shift+Z' elsewhere
 ```
 
-Format a `+`-separated shortcut spec for display on the current platform. `Mod` maps to ⌘ on Mac and Ctrl elsewhere; Mac output uses canonical `⌃⌥⇧⌘` glyph order. Use it for menu shortcut hints (e.g. in a `<menu-bar>` config) so a single `'Mod+…'` spec stays platform-correct. See `references/utilities.md`.
+Format a `+`-separated shortcut spec for display on the current platform. `Mod` maps to ⌘ on Mac and Ctrl elsewhere. Mac output uses canonical `⌃⌥⇧⌘` glyph order. Use it for menu shortcut hints (e.g. in a `<menu-bar>` config) so a single `'Mod+…'` spec stays platform-correct. See `references/utilities.md`.
 
 ## Form integration
 
@@ -696,7 +700,7 @@ Form-associated components (`<slider-value>`, `<select-dropdown>`, `<color-picke
 </script>
 ```
 
-Components that are **not** form-associated (`<toggle-switch>`, `<color-swatch>`, `<dropdown-menu>`, `<gradient-stops>`, `<code-editor>`, `<image-magnifier>`, and all of the industrial / chrome / collaboration components — `<knob-dial>`, `<led-matrix>`, `<tempo-bar>`, `<menu-bar>`, `<seance-dialog>`, `<session-status>`, `<join-session-dialog>`) won't appear in `FormData`. Mirror their values into hidden inputs or read them directly when submitting. (`<knob-dial>` in particular holds a value but isn't form-associated — read `el.value` or track its `change` event.)
+Components without form association do not appear in `FormData`. These include `<toggle-switch>`, `<color-swatch>`, `<dropdown-menu>`, `<gradient-stops>`, `<code-editor>`, and `<image-magnifier>`. They also include every industrial, chrome, and collaboration component: `<knob-dial>`, `<led-matrix>`, `<tempo-bar>`, `<menu-bar>`, `<seance-dialog>`, `<session-status>`, and `<join-session-dialog>`. Mirror their values into hidden inputs or read them directly during submission. For `<knob-dial>`, read `el.value` or track `change`, even though it holds a value.
 
 ## Programmatic instantiation
 
@@ -736,4 +740,4 @@ el.addEventListener('change', (e) => {
 })
 ```
 
-This is intentional — handfish components keep event payloads minimal so they're cheap to dispatch and forward; the source of truth is the element's own state.
+Handfish keeps event payloads small so dispatching and forwarding them costs little. The element's state is authoritative.

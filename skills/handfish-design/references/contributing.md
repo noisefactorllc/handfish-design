@@ -1,6 +1,6 @@
 # Contributing to Handfish
 
-This reference is for changes to the handfish repo itself — adding a new component, porting one in from another Noise Factor app, or modifying an existing one. If you're consuming handfish in an app, you don't need this; see the other references.
+Use this reference when adding, porting, or modifying a component in the handfish repo. For app-side use of handfish, read the other references.
 
 ## Repo layout
 
@@ -109,7 +109,7 @@ customElements.define('<tag-name>', <ClassName>)
 export { <ClassName> }
 ```
 
-The style-injection pattern is non-negotiable — every component does it the same way so the cumulative DOM cost stays small (one `<style>` block per component type, regardless of instance count).
+Every component must use this style-injection pattern. It keeps DOM cost at one `<style>` block per component type, regardless of instance count.
 
 ### 3. Use only `--hf-*` tokens
 
@@ -124,7 +124,7 @@ Common pattern with safe fallbacks (used throughout existing components):
 }
 ```
 
-The fallback is a last-ditch safety net — it shouldn't matter in practice (tokens.css always loads), but it prevents a totally broken render if something goes wrong with stylesheet ordering.
+The fallback should normally be unnecessary because `tokens.css` always loads. It prevents a completely broken render if stylesheet ordering fails.
 
 ### 4. Export from `src/index.js`
 
@@ -171,13 +171,13 @@ npm test                # checks current snapshots
 npm run test:update     # updates snapshots after intentional changes
 ```
 
-For a new component, the baselines don't exist yet — `npm run test:update` creates them. Commit the new snapshot files alongside the code. For changes to existing components, `npm test` shows the visual diff; if the diff is intentional, `npm run test:update` to accept.
+For a new component, the baselines don't exist yet — `npm run test:update` creates them. Commit the new snapshot files alongside the code. For changes to existing components, `npm test` shows the visual diff. If the diff is intentional, `npm run test:update` to accept.
 
 The tests run in both default themes (dark + light) — confirm both look right before committing.
 
 ### 8. Document the component
 
-Update `AGENTS.md` in the handfish repo to add the new component to the component table. The table feeds the LLM-facing docs; missing entries mean Claude doesn't know about new components and won't suggest them.
+Update `AGENTS.md` in the handfish repo to add the new component to the component table. The table feeds the LLM-facing docs. Missing entries mean Claude doesn't know about new components and won't suggest them.
 
 ## Porting a component from another repo
 
@@ -186,7 +186,7 @@ When adopting a component from Noisedeck, Tetra, or another Noise Factor app, th
 1. **Copy the file** into `src/components/<tag-name>/<ClassName>.js`.
 2. **Remap CSS variables.** Other repos use their own prefixes (`--color-1`, `--accent-3`, `--font-mono`). Search-and-replace each one to its `--hf-*` equivalent. Use the catalog in `tokens.md`. If a variable in the source doesn't have an `--hf-*` equivalent, either pick the closest semantic match or add a new token.
 3. **Remap font imports.** `--font-mono` → `--hf-font-family-mono`. Same for any other typography tokens.
-4. **Remap utility imports.** If the source imports color helpers, escape handlers, or tooltip utils from a path like `../../utils/colors.js`, update to the handfish equivalents — `../../utils/colorConversions.js` for color, `../../utils/escapeHandler.js` for escape stack, `../../utils/tooltips.js` for tooltips.
+4. **Remap utility imports.** Replace source utility paths, such as `../../utils/colors.js`, with handfish equivalents. Use `../../utils/colorConversions.js` for color, `../../utils/escapeHandler.js` for the escape stack, and `../../utils/tooltips.js` for tooltips.
 5. **Function rename pass.** Source repos sometimes have differently-named conversion functions. Match handfish's names: `rgbToHex`, `parseHex`, `rgbToHsv`, `rgbToOklch`, etc. (See `color.md`.)
 6. **Drop incompatible features.** If the source uses Shadow DOM, refactor to light DOM with style injection (see step 2 of "Adding a new component"). Shadow DOM doesn't survive the port.
 7. **Run all the steps from "Adding a new component" from step 4 onward** (export, demo, syntax check, visual baselines, AGENTS.md update).
@@ -195,32 +195,32 @@ When adopting a component from Noisedeck, Tetra, or another Noise Factor app, th
 
 The risk of modifying a shared component is regression in apps that depend on it. Before changing behavior:
 
-1. **Check what apps consume the component.** `grep -r "<tag-name>" ~/platform/` finds every consumer in the platform workspace. Read those usages; understand what they expect.
+1. **Check what apps consume the component.** `grep -r "<tag-name>" ~/platform/` finds every consumer in the platform workspace. Read those usages. Understand what they expect.
 2. **Decide if it's a breaking change.** Adding a new optional attribute, new event, or new mode is non-breaking. Renaming an attribute, changing event detail structure, or changing default behavior *is* breaking.
 3. **For breaking changes:** prefer adding a new attribute / mode that opts into the new behavior, and leave the old behavior as the default. Existing consumers don't break. New consumers opt in.
 4. **For non-breaking changes:** make the change, run visual regression, update the demo if the new feature is visible.
-5. **Run visual regression.** Always. Even small CSS changes can shift pixels in unintuitive ways. `npm test`; if the diff is intentional, `npm run test:update` and commit the new baselines.
+5. **Run visual regression.** Always. Even small CSS changes can shift pixels in unintuitive ways. `npm test`. If the diff is intentional, `npm run test:update` and commit the new baselines.
 
 ## Anti-patterns when contributing
 
 - **Shadow DOM.** Don't reach for it. Light DOM with style injection is the model. Anything that breaks that breaks theming and overrides for every consumer.
 - **Inline literal colors / spacings.** Use `--hf-*` tokens. If none fit, add a new one.
-- **Dependencies.** Handfish has zero runtime dependencies. New components shouldn't introduce any. If you need a function that exists in a popular library, copy the relevant piece in (with attribution if needed) rather than depending on the library.
-- **Custom event names that don't follow `input` / `change`.** Stick with the standard event semantics. If the component genuinely fires something the standard names don't cover, prefer a new `CustomEvent` with a descriptive name (e.g., `gradient-stop-added`) over reusing `input` / `change` for it.
+- **Dependencies.** Handfish has zero runtime dependencies. New components should not add any. If a library contains a required function, copy the relevant code with attribution where necessary.
+- **Custom event names outside `input` / `change`.** Follow standard event semantics. If neither event describes the action, prefer a `CustomEvent` with a descriptive name such as `gradient-stop-added`. Do not reuse `input` / `change` for an unrelated action.
 - **Big examples.** Demos in `examples/index.html` should show the *core* states of the component, not every possible configuration. If the component has dozens of permutations, link out to a separate doc page.
 - **Skipping visual regression.** It's the only thing that catches "this looks fine in dev but is one pixel off in prod" before a release. Run it.
 
 ## CI / release flow
 
-Handfish releases are version-bumped manually and published to the CDN by the scaffold deploy pipeline. Visual regression tests are part of CI; a failed snapshot check blocks merge. After merge to `main`, the CDN's `/0` rolling pin updates within minutes; the new version becomes available to every app on `/0`.
+Handfish releases are version-bumped manually and published to the CDN by the scaffold deploy pipeline. Visual regression tests are part of CI. A failed snapshot check blocks merge. After merge to `main`, the CDN's `/0` rolling pin updates within minutes. The new version becomes available to every app on `/0`.
 
-If a change is risky (large refactor, new theming logic), you can pin a specific version (`0.10.x`) for an app while testing it, then bump back to `/0` once you've confirmed it works. See `setup.md` for the pinning policy.
+For risky changes, such as a large refactor or new theme logic, you can pin an app to a specific `0.10.x` version. After testing confirms correct behavior, you can return to `/0`. See `setup.md`.
 
 ## Maintaining this skill (handfish-design plugin)
 
-This skill ships a hand-written reference set (`components.md`, `tokens.md`, etc.) plus one machine-generated reference (`api-canonical.md`) that captures the source-derived component APIs. Hand-written docs can drift; the canonical reference cannot. **When handfish ships a new minor or patch version, regenerate the canonical reference.**
+This skill ships a hand-written reference set (`components.md`, `tokens.md`, etc.) plus one machine-generated reference (`api-canonical.md`) that captures the source-derived component APIs. Hand-written docs can drift. The canonical reference cannot. **When handfish ships a new minor or patch version, regenerate the canonical reference.**
 
-You do not have to notice on your own. `npm test` checks both surfaces that drift — the canonical reference, and the tag list in `SKILL.md`'s `description` frontmatter that decides whether this skill activates at all — and a weekly CI job runs the same checks against handfish `main`. `npm run check` answers "is the reference current?" on its own without writing anything.
+`npm test` checks the canonical reference and the activation tag list in `SKILL.md`'s `description`. A weekly CI job runs these checks against handfish `main`. `npm run check` checks reference freshness without writing files.
 
 ### Regeneration workflow
 
@@ -259,9 +259,9 @@ Read the diff. For each change in `api-canonical.md`:
 - **Toast helper default duration changed.** Update `utilities.md` and the durations table.
 - **New theme files or `data-theme` values.** Update the catalog table in `theming.md` and the count narrative in `README.md` / `plugin.json`.
 
-- **New custom element registered.** Add its tag to the `description` frontmatter in `SKILL.md` and to the trigger list in `README.md`. This is the one that bites hardest: an element missing from `description` means the skill never loads for anyone working on it, so they get no handfish guidance at all. `npm test` names any tag you missed.
+- **New custom element registered.** Add its tag to `SKILL.md`'s `description`. Add it to the README trigger list. A missing description tag prevents the skill from activating for that component. `npm test` identifies missing tags.
 
-The provenance block at the top of `api-canonical.md` records which handfish commit it was generated from, so there is no separate anchor line in `README.md` to keep in sync by hand.
+The `api-canonical.md` provenance block records the source handfish commit. It needs no separate README anchor that maintainers must synchronize manually.
 
 ### Why two scripts, not one
 
@@ -274,4 +274,4 @@ If handfish's component patterns change, only the first script needs updating. I
 
 ### When to skip regeneration
 
-If you're shipping a documentation-only change to this skill (e.g., adding a new anti-pattern, clarifying prose), you don't need to regenerate. The canonical reference only needs regenerating when handfish itself changes. The provenance section at the top of `api-canonical.md` shows which handfish version it was generated from — if that matches the version you're documenting against, you're fine.
+Documentation-only edits, such as clarifying prose or adding an anti-pattern, do not require regeneration. Regenerate the canonical reference when handfish changes. Its provenance identifies the handfish version. Check that this matches the version you are documenting.

@@ -24,16 +24,16 @@ initializeTooltips()
 <toggle-switch class="tooltip" data-title="Enable dark mode" id="darkModeToggle"></toggle-switch>
 ```
 
-If you forget the `tooltip` class, no tooltip appears even though `data-title` is set — the most common mistake. The class is the trigger; `data-title` is just the message source.
+If you forget the `tooltip` class, no tooltip appears even though `data-title` is set — the most common mistake. The class is the trigger. `data-title` is just the message source.
 
 Internally, `initializeTooltips()` registers `pointerover`/`pointerout`/`pointerdown`/`focusin`/`focusout` handlers on `document` (plus `scroll`/`resize` for repositioning) that all do `event.target.closest('.tooltip')` to find the tooltipped element. A single `<div id="hf-tooltip-layer">` is reused across the page — there's no per-element DOM cost.
 
-This is intentionally minimal. Tooltip libraries that wrap each tooltipped element in extra structure don't scale; handfish's approach handles thousands of tooltipped elements with one DOM node and one event listener.
+Handfish avoids extra wrapper structures around each tooltip target. It handles thousands of targets with one DOM node and one event listener.
 
 ### When to use `data-title` vs `aria-label`
 
 - **`data-title`** — visible tooltip for sighted users. Use for icon-only buttons and other UI where a short label adds clarity.
-- **`aria-label`** — accessibility name read by screen readers. Use whenever an interactive element doesn't have visible text. The tooltip system falls back to `aria-label` if `data-title` is absent, but the two have different semantics — set both when the same string serves both purposes:
+- **`aria-label`** — the accessible name for screen readers. Use it when an interactive element has no visible text. Tooltips use it as fallback text when `data-title` is absent. The attributes have different purposes. Set both when one string serves both purposes:
 
 ```html
 <button class="tooltip" aria-label="Save" data-title="Save the current document (Ctrl+S)">
@@ -41,7 +41,7 @@ This is intentionally minimal. Tooltip libraries that wrap each tooltipped eleme
 </button>
 ```
 
-The button is accessibly named "Save"; the visible tooltip provides extra context (the keyboard shortcut). The `tooltip` class is still required to activate the hover layer; `aria-label` only provides the message text as a fallback when `data-title` is missing.
+The button is accessibly named "Save". The visible tooltip provides extra context (the keyboard shortcut). The `tooltip` class is still required to activate the hover layer. `aria-label` only provides the message text as a fallback when `data-title` is missing.
 
 ### Customizing tooltip appearance
 
@@ -55,7 +55,7 @@ The reasons handfish has its own:
 - It's already loaded — adding another library adds bytes and a second source of truth.
 - It uses `data-title`, which is a one-attribute idiom that doesn't pollute markup with wrappers.
 
-If a tooltip needs more than handfish provides — rich content, interactive elements, custom positioning logic — reach for `<dialog>` or a popover instead, not a different tooltip library.
+For rich content, interactive elements, or custom positioning beyond handfish's tooltips, use `<dialog>` or a popover. Do not add another tooltip library.
 
 ## The escape handler: closing modals/menus on Esc
 
@@ -83,13 +83,15 @@ class MyModal extends HTMLElement {
 }
 ```
 
-The built-in components that register on the escape stack are `<dropdown-menu>`, `<menu-bar>`, `<seance-dialog>`, and `<join-session-dialog>`. `<color-picker>` and `AboutDialog` instead lean on native `<dialog>` elements, which the browser closes on Escape independently of the stack — so `hasOpenEscapeables()` returns `false` for an open color picker or about dialog even though Escape still closes them. (The two collaboration dialogs register on the stack *and* use a native `<dialog>`.) If you need a unified "is anything overlay-y open?" check, count native dialogs separately: `document.querySelectorAll('dialog[open]').length > 0 || hasOpenEscapeables()`.
+`<dropdown-menu>`, `<menu-bar>`, `<seance-dialog>`, and `<join-session-dialog>` register on the escape stack. `<color-picker>` and `AboutDialog` use native `<dialog>` elements, which the browser closes independently on Escape. Thus, `hasOpenEscapeables()` returns `false` for an open color picker or About dialog even though Escape closes it. Both collaboration dialogs use the stack and native `<dialog>`.
+
+To check all overlays, include native dialogs separately: `document.querySelectorAll('dialog[open]').length > 0 || hasOpenEscapeables()`.
 
 ### How the stack interacts with `<dropdown-menu>`
 
-Open a `<dropdown-menu>`, then open a custom modal you've registered with the stack. The modal goes on top. Escape closes the modal first; another Escape closes the menu. The order is LIFO — most recently registered closes first.
+Open a `<dropdown-menu>`, then open a custom modal you've registered with the stack. The modal goes on top. Escape closes the modal first. Another Escape closes the menu. The order is LIFO — most recently registered closes first.
 
-If you write a custom escapeable that does *not* use the stack, your element will close at the wrong time (or not at all) when nested with `<dropdown-menu>` and other stack-registered elements. Use `registerEscapeable` for any custom open-able UI that should participate in the same Esc-press ordering.
+A custom escapeable outside the stack can close at the wrong time, or remain open, among stack-registered elements. Use `registerEscapeable` for custom UI that should follow the same Escape ordering.
 
 ### When to call `initEscapeHandler()`
 
@@ -158,7 +160,7 @@ showToast('Hello', {
 })
 ```
 
-`dismissLabel` (default `'Dismiss'`) sets the `aria-label` on the close button. It's the one user-facing string a toast exposes — pass a translated value in a non-English UI so the dismiss control is named correctly for screen readers. See `references/i18n.md`.
+`dismissLabel`, default `'Dismiss'`, sets the close button's `aria-label`. It is the toast's only exposed user-facing string. Pass a translation for non-English UI so screen readers announce the correct name. See `references/i18n.md`.
 
 `duration: 0` produces a sticky toast that requires the user to close it via the X button (provided `dismissible` is true). Use sparingly — sticky toasts that pile up are worse than no toasts at all. Reserve them for genuinely persistent state (e.g., "you're offline").
 
@@ -166,7 +168,7 @@ The icon is chosen from the `type` automatically — there's no per-call `icon` 
 
 ### What NOT to use toasts for
 
-- **Errors that block continuation.** A toast can be missed; if the user must respond, use a `<dialog>` modal instead.
+- **Errors that block continuation.** A toast can be missed. If the user must respond, use a `<dialog>` modal instead.
 - **Long-running progress.** Toasts have no progress affordance. Use a status bar or progress indicator.
 - **Critical confirmations.** "Are you sure you want to delete?" is not a toast.
 - **Repetitive status spam.** A loop that fires `showSuccess('saved')` once per keystroke creates a flood. Debounce or batch.
@@ -175,7 +177,7 @@ Toasts are for transient, advisory, dismissable feedback. If the message is impo
 
 ### Toast and screen readers
 
-The toast layer is a polite live region — assistive tech announces toast contents when they appear. Keep the messages short and meaningful for that reason; long toast text is annoying for everyone but especially for screen reader users.
+The toast layer is a polite live region — assistive tech announces toast contents when they appear. Keep the messages short and meaningful for that reason. Long toast text is annoying for everyone but especially for screen reader users.
 
 ## Keyboard-shortcut formatting: `formatShortcut` / `isMacPlatform`
 
@@ -194,9 +196,9 @@ if (isMacPlatform()) { /* … */ }
 Rules:
 
 - **`Mod`** is the meta key: ⌘ on Mac, `Ctrl` everywhere else. (`Cmd`/`Meta`/`Ctrl`/`Control`/`Alt`/`Option`/`Shift` are also recognized, case-insensitively.)
-- On Mac, modifiers render as glyphs joined in canonical `⌃⌥⇧⌘` order with no separator; elsewhere they keep the given order joined with `+`.
-- Single-character keys are upper-cased; longer key names (`F1`, `Space`, `Escape`, `Enter`) pass through unchanged.
+- On Mac, modifiers render as glyphs joined in canonical `⌃⌥⇧⌘` order with no separator. Elsewhere they keep the given order joined with `+`.
+- Single-character keys are upper-cased. Longer key names (`F1`, `Space`, `Escape`, `Enter`) pass through unchanged.
 - `formatShortcut(spec, { mac: true|false })` forces a platform — handy for tests or previewing the other platform's rendering.
-- `isMacPlatform(nav?)` accepts an injectable `Navigator` for testing; it defaults to the global `navigator`.
+- `isMacPlatform(nav?)` accepts an injectable `Navigator` for testing. It defaults to the global `navigator`.
 
 Use it to build the `shortcut` fields in a `<menu-bar>` config so a single spec stays correct on every platform.

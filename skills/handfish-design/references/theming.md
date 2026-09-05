@@ -1,12 +1,12 @@
 # Theming
 
-Handfish ships 17 theme stylesheets covering 20 distinct `data-theme` values (some files declare both a dark and a light variant), plus the two default modes that apply when no `data-theme` is set. The whole system is built so that switching themes is a single attribute change on `<html>` and every styled element responds — *if* the styles followed the token discipline.
+Handfish ships 17 theme stylesheets with 20 `data-theme` values. Some files define both dark and light variants. Two default modes apply without `data-theme`. Changing that attribute on `<html>` updates every styled element that uses the design tokens.
 
 ## How themes work
 
 Themes are CSS files that redefine the primitive token layer (`--hf-color-1` through `--hf-color-7`, `--hf-accent-1` through `--hf-accent-4`, the four semantic colors) under a `[data-theme="<name>"]` selector. The semantic aliases (`--hf-bg-base`, `--hf-text-normal`, etc.) re-resolve automatically because they reference the primitives.
 
-This means a theme file is small — usually just the ~14 primitive colors and maybe a few overrides for shadows, blurs, or radii if the theme has a distinctive personality (e.g., `brutalist` zeroes out radii, `cyberpunk` cranks up the glow).
+A theme file usually defines about 14 primitive colors. It may also override shadows, blurs, or radii. For example, `brutalist` removes radii and `cyberpunk` increases glow.
 
 The flow:
 
@@ -45,7 +45,7 @@ Critically, app code does not need to participate in this. App stylesheets that 
 | Synthwave | `synthwave` | 80s neon — magenta, cyan, dark purple |
 | Terminal | `terminal` | Phosphor green on near-black, monospace feel |
 
-The "default dark" and "default light" themes are special: they live in `tokens.css` and apply when no `data-theme` is set (with light kicking in via `prefers-color-scheme: light`). All other themes are opt-in via the attribute.
+Default dark and light modes live in `tokens.css`. They apply without `data-theme`, with light mode controlled by `prefers-color-scheme: light`. Other themes require their attribute value.
 
 A few themes ship paired dark/light variants (`gray-*`, `neutral-*`, `high-contrast-*`). Treat them as separate themes — they're not auto-paired.
 
@@ -61,7 +61,7 @@ Each theme is a separate stylesheet under `/0/styles/themes/<name>.css`. Apps th
 <!-- ... etc -->
 ```
 
-Loaded theme stylesheets that aren't currently active are dormant — their selectors don't match anything until `data-theme` activates them. There's no perf cost to loading more themes than are active beyond the initial download (which is small — each theme file is a few hundred bytes of CSS).
+Inactive theme selectors do not match until `data-theme` activates them. Loading extra themes adds only the initial download cost. Each file contains a few hundred bytes of CSS.
 
 ## Switching themes at runtime
 
@@ -144,7 +144,7 @@ A custom theme is a stylesheet that defines the primitive tokens under `[data-th
 
 Some patterns from the built-in themes:
 
-- **Single-hue themes** (default dark, cyberpunk, ocean) use one hue across all neutrals and accents. The chroma typically tapers at the lightness extremes (`0.010` at `13%` and `98%`, peaking around `0.056` at `31.8%`) — this prevents the darkest/lightest tones from looking artificially tinted.
+- **Single-hue themes** (default dark, cyberpunk, ocean) use one hue for neutrals and accents. Chroma typically decreases at lightness extremes. It is `0.010` at `13%` and `98%`, and peaks near `0.056` at `31.8%`. This avoids artificial tinting of the darkest and lightest tones.
 - **Two-hue themes** (sunset, dusk) use one hue for neutrals and a contrasting one for accents.
 - **Zero-chroma themes** (neutral, gray) set all chroma values to 0 — pure grayscale.
 - **Brutalist** also overrides `--hf-radius*` to `0` and softens `--hf-shadow*` for the sharp aesthetic.
@@ -163,16 +163,16 @@ Then activate: `document.documentElement.dataset.theme = 'my-theme'`. No code ch
 When something visually breaks under a specific theme, the cause is almost always one of:
 
 1. **A hardcoded color/value somewhere.** Open DevTools → Elements → inspect the broken element → look at Computed styles. Anything that's a literal value (not `var(--hf-*)`) is a candidate. Trace it back to its stylesheet and replace with a token.
-2. **A token that doesn't redefine in this theme.** A handful of secondary tokens (e.g., `--hf-titlebar-bg`) are set in the default `:root` but not redefined per theme — they look fine in default dark and may look off-brand under another theme that doesn't override them. If a broken element references one, either add a per-theme override or replace it with a token (like `--hf-bg-elevated`) that every theme already redefines via the primitive layer.
-3. **A `prefers-color-scheme` mismatch.** The default `light` mode kicks in via media query. If `data-theme="dark"` is set but the OS is in light mode, both apply — the explicit `data-theme` wins because it's later in the cascade, but if a custom rule has `@media (prefers-color-scheme: light)`, it can fight. Prefer `[data-theme="..."]` selectors over media queries for conditional styling.
+2. **A token without a theme override.** Some secondary tokens, such as `--hf-titlebar-bg`, exist only in the default `:root`. They may look inconsistent in another theme. For an affected element, add a theme override or use a token that every theme redefines. `--hf-bg-elevated` is one such token, through the primitive layer.
+3. **A `prefers-color-scheme` mismatch.** A media query activates default light mode. With `data-theme="dark"` and a light OS theme, both apply. The explicit attribute wins because it appears later in the cascade. A custom `@media (prefers-color-scheme: light)` rule can conflict. Prefer `[data-theme="..."]` selectors for conditional styles.
 4. **Stylesheet load order.** If a theme stylesheet loads before `index.css`, its overrides are clobbered by the defaults. Theme stylesheets must come after `index.css`.
 
 ## Anti-patterns
 
-- **Building app-specific theming on top of `[data-theme]`.** If you need a per-page or per-section variation, scope it to a class (`<section class="hero">`) and override tokens there. Don't add new `data-theme` values for non-theme purposes.
+- **Building app-specific theming on `[data-theme]`.** For page or section variations, scope token overrides to a class such as `<section class="hero">`. Do not add `data-theme` values for other purposes.
 - **Switching themes by reloading the page.** Themes are designed to switch live — a reload is unnecessary and feels broken to users.
-- **Hardcoding the default-dark colors as fallbacks "just in case the theme doesn't load."** If `index.css` doesn't load, theming is the least of the page's problems. Don't pollute the codebase with literals.
-- **Conflating the color theme with the typeface or the direction.** `data-theme` is one of three independent root-level axes (see below); don't reach for a new `data-theme` value to change the font or flip the layout.
+- **Hardcoding default-dark fallback colors.** If `index.css` fails to load, the page has problems beyond theming. Do not add literals for this case.
+- **Conflating color, typeface, and direction.** These use three independent root attributes. Do not add a `data-theme` value to change the font or direction.
 
 ## Three orthogonal axes: theme, language, direction
 
@@ -181,7 +181,7 @@ Handfish separates three concerns onto three independent attributes on `<html>` 
 | Attribute | Controls | Values |
 |-----------|----------|--------|
 | `data-theme` | The **color** palette (the `--hf-*` primitive layer) | `dark`, `cyberpunk`, `neutral-light`, … (this file's catalog) |
-| `data-language` | The **typeface** "design language" | *(unset)* = default Nunito; `industrial` = Atkinson Hyperlegible (requires `industrial.css`) |
+| `data-language` | The **typeface** "design language" | *(unset)* = default Nunito. `industrial` = Atkinson Hyperlegible (requires `industrial.css`) |
 | `dir` | Text **direction** (bidi) | `ltr` (default), `rtl` |
 
-For example, `<html data-theme="neutral-dark" data-language="industrial" dir="rtl">` is a valid, fully-supported combination: neutral-dark colors, the industrial instrument typeface, laid out right-to-left. Each axis is orthogonal — changing one never forces a change in another. The industrial typeface layer is covered in `setup.md`; direction/bidi in `i18n.md`.
+For example, `<html data-theme="neutral-dark" data-language="industrial" dir="rtl">` is a valid, fully-supported combination: neutral-dark colors, the industrial instrument typeface, laid out right-to-left. Each axis is orthogonal — changing one never forces a change in another. The industrial typeface layer is covered in `setup.md`. Direction/bidi in `i18n.md`.

@@ -1,6 +1,6 @@
 # Color Utilities
 
-Color conversion functions exported from `handfish/utils/colorConversions.js` (re-exported from the package root). Use these instead of writing color math by hand or pulling in another library — they're already loaded and they share conventions with the design tokens.
+`handfish/utils/colorConversions.js` exports these color conversion functions. The package root re-exports them. Use them instead of writing color math or importing another library. They already load with handfish and follow its design-token conventions.
 
 ## Conventions
 
@@ -8,9 +8,9 @@ The library uses two color representations consistently:
 
 - **`{r, g, b}` with values 0–255 (integers)** for sRGB. This matches what `parseHex` produces and what `rgbToHex` consumes.
 - **`{r, g, b}` with values 0–1 (floats)** for *linear* RGB, used internally as a bridge to OkLab/OKLCH. Functions named `linear*` use this scale.
-- **`{l, a, b}` and `{l, c, h}` for OkLab and OKLCH** with `l` as a 0–1 lightness, `a/b` as unbounded color-opponent axes, and `c/h` as chroma (0+) and hue (0–360°).
+- **`{l, a, b}` and `{l, c, h}` for OkLab and OKLCH**. Lightness `l` ranges from 0–1. The color-opponent axes `a/b` are unbounded. Chroma `c` ranges from 0+. Hue `h` ranges from 0–360°.
 
-Pay attention to which scale a function expects. Mixing 0–1 sRGB with the 0–255 functions silently produces near-black colors; mixing 0–255 linear with the 0–1 linear functions produces oversaturated junk. The function name's prefix is your guide.
+Pay attention to which scale a function expects. Mixing 0–1 sRGB with the 0–255 functions silently produces near-black colors. Mixing 0–255 linear with the 0–1 linear functions produces oversaturated junk. The function name's prefix is your guide.
 
 ## Function reference
 
@@ -36,7 +36,7 @@ rgbToHsv({r:255, g:128, b:0})   // → {h:30, s:100, v:100}
 hsvToRgb({h:30, s:100, v:100})  // → {r:255, g:128, b:0}
 ```
 
-HSV is intuitive for color pickers (the OG HSV triangle UI). It's not perceptually uniform — equal numerical changes in `v` don't look like equal lightness changes — so it's not a great choice for design tokens, but it is good for "pick a color" UIs.
+HSV is intuitive for color pickers, including the traditional HSV triangle UI. Equal changes in `v` do not produce equal perceived lightness changes. It suits color selection, but its lack of perceptual uniformity makes it a poor choice for design tokens.
 
 ### sRGB ↔ OkLab
 
@@ -61,8 +61,8 @@ oklchToRgbRaw({l:0.71, c:0.21, h:46.5})  // → {r:255, g:128, b:0} (NOT gamut-m
 
 OKLCH is the polar form of OkLab — same color space, but with chroma and hue as separate axes. This is what handfish's design tokens use, and it's the most useful representation for theme work because:
 
-- Hue is a single number; you can rotate hues without affecting saturation or lightness.
-- Chroma is a single number; you can desaturate without color shift.
+- Hue is a single number. You can rotate hues without affecting saturation or lightness.
+- Chroma is a single number. You can desaturate without color shift.
 - Lightness scales perceptually.
 
 `oklchToRgb` does gamut mapping for you — if the OKLCH value is outside sRGB (some vivid neons are), it returns the closest in-gamut RGB. `oklchToRgbRaw` doesn't gamut-map — use it only when you specifically need the unbounded conversion (e.g., for further math).
@@ -83,7 +83,7 @@ rgbToHexWithAlpha({r:255, g:128, b:0}, 0.5)  // → '#ff800080'
 
 `parseHex` accepts 3-digit shorthand (`#rgb`) and 6-digit (`#rrggbb`) forms only, with or without `#` and case-insensitive. It returns `null` for any other length — so 4-digit and 8-digit alpha-bearing hex strings need to be split apart manually before calling.
 
-`rgbToHex` always emits 6-digit; `rgbToHexWithAlpha(rgb, alpha)` emits 8-digit (the alpha argument is `0–1`, output is `00–ff`).
+`rgbToHex` always emits 6-digit. `rgbToHexWithAlpha(rgb, alpha)` emits 8-digit (the alpha argument is `0–1`, output is `00–ff`).
 
 ### Gamut mapping
 
@@ -173,5 +173,5 @@ If you need to actually parse the OKLCH string, use the browser's `CSS.supports`
 ## What NOT to do
 
 - **Don't mix RGB scales.** A function that takes 0–255 and a function that takes 0–1 will both accept the wrong scale silently. Match the prefix.
-- **Don't convert through HSL "because it's familiar."** HSL is not perceptually uniform; using it as an intermediate for color math (lightening, blending) produces visible artifacts. OKLCH is the right intermediate.
-- **Don't reinvent these functions.** They're tested, gamut-aware, and consistent with the design system. Importing them is one line; reimplementing is bug-prone.
+- **Do not convert through HSL because it is familiar.** HSL lacks perceptual uniformity. Using it for intermediate lightening or blending produces visible artifacts. Use OKLCH as the intermediate format.
+- **Don't reinvent these functions.** They're tested, gamut-aware, and consistent with the design system. Importing them is one line. Reimplementing is bug-prone.

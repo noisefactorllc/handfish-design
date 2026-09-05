@@ -4,7 +4,9 @@ How to add Handfish to a brand-new web app, choose a CDN pin level, and avoid fo
 
 ## CDN base
 
-All handfish assets are served from `https://handfish.noisefactor.io`. The recommended runtime distribution is the CDN — apps load handfish as ES modules over HTTPS. There is also an npm package (`@noisedeck/handfish`, declared in handfish's `package.json`) used by handfish's own dev tooling and by apps that prefer to bundle from source. The CDN serves the artifact at `dist/handfish.esm.min.js`, produced from `src/index.js` by `scripts/bundle.js` — the file list at the CDN does not mirror the `src/` tree, only the published bundle and the stylesheets.
+`https://handfish.noisefactor.io` serves all handfish assets. The recommended distribution is the CDN, which supplies ES modules over HTTPS. The npm package `@noisedeck/handfish` supports handfish development tools and apps that bundle source. Handfish declares it in `package.json`.
+
+`scripts/bundle.js` builds `dist/handfish.esm.min.js` from `src/index.js`. The CDN contains this published bundle and stylesheets. Its file list does not mirror `src/`.
 
 The bare specifier `'handfish'` (used in `import` statements throughout these docs) only resolves because of the importmap shown below. If your app pulls handfish from npm instead, the import name is `'@noisedeck/handfish'`.
 
@@ -56,7 +58,7 @@ Three things are needed in `<head>`:
 </html>
 ```
 
-That's the entire setup. Importing a class (e.g., `ToggleSwitch`) registers its custom element as a side effect of loading the file — you don't need to do anything else for `<toggle-switch>` to work in the markup.
+Importing a class such as `ToggleSwitch` registers its custom element when the file loads. No further registration is necessary for `<toggle-switch>`.
 
 ## Stylesheet structure
 
@@ -117,13 +119,15 @@ Handfish uses Nunito (UI) and Noto Sans Mono (mono). Both are loaded via `@font-
 
 The `Blank` variants are tiny (~1KB) invisible metric placeholders — they reserve the right space for the real font without blocking render. The real fonts swap in when ready (`font-display: swap`).
 
-For Material Symbols icons (used by `.hf-icon`, `<dropdown-menu>`'s icon attribute, and the industrial components), no preload is needed — the `@font-face` and the `.hf-icon` base mapping live in `tokens.css`, which `index.css` imports first. (They used to live in `index.css`; they were moved so that any à-la-carte CSS subset that includes `tokens.css` still gets real icons.) **Gotcha:** if component icons render as their literal ligature *names* — `touch_app`, `restart_alt`, `palette` — instead of glyphs, it means `tokens.css` (or the `index.css` that imports it) isn't loaded on the page.
+Material Symbols icons need no preload. `.hf-icon`, `<dropdown-menu>` icons, and industrial components use them. Their `@font-face` and `.hf-icon` mapping live in `tokens.css`, which `index.css` imports first. They moved from `index.css` so CSS subsets that import `tokens.css` also receive icons.
+
+If icons display names such as `touch_app`, `restart_alt`, or `palette`, the page is missing `tokens.css` or its importing `index.css`.
 
 ## Common deviations from the default setup
 
-- **Multiple themes available, runtime-switchable.** Load all the theme stylesheets you want available; switch by setting `document.documentElement.dataset.theme = 'cyberpunk'`. They're idle until activated by the matching selector. See `theming.md`.
+- **Multiple themes available, runtime-switchable.** Load all the theme stylesheets you want available. Switch by setting `document.documentElement.dataset.theme = 'cyberpunk'`. They're idle until activated by the matching selector. See `theming.md`.
 - **Bundle handfish into a build pipeline.** Don't. The CDN with version pinning is the supported deployment model. If CDN reliability is the concern, set up edge caching, not duplication.
-- **Self-host handfish on a different domain.** Possible (the source is MIT-licensed) but you give up automatic updates and you're now responsible for keeping the version in sync. Default to the CDN.
+- **Self-host handfish on a different domain.** The MIT license permits this. You lose automatic updates and must synchronize versions yourself. Default to the CDN.
 - **Use a single theme and never switch.** Skip loading other theme stylesheets and hardcode the `data-theme` attribute. Saves a few KB.
 
 ## Verification after setup

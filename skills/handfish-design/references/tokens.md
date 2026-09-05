@@ -6,9 +6,9 @@ The full `--hf-*` token catalog. Every visual choice in handfish — color, spac
 
 When a token like `--hf-accent-3` is used in CSS, the value resolves at runtime based on the active theme. If the user switches from `dark` to `cyberpunk`, every element that used `var(--hf-accent-3)` recolors automatically. Every element that hardcoded `#a5b8ff` does not.
 
-This is the difference between handfish-style theming and "we just have a stylesheet for each theme." Handfish's themes redefine ~30 primitive variables; the rest of the system follows. Hardcoded values fragment that automatic propagation and become silent visual bugs in any theme other than the one you authored in.
+Handfish themes redefine about 30 primitive variables. The rest of the system follows those values. Hardcoded values interrupt that propagation and cause silent visual errors in other themes.
 
-The rule is simple: if a value is visual (color, size, weight, motion), it comes from a token. The exceptions are dynamic values from user data (a color the user picked, a position from a drag) — those are inline, computed, and don't need theming.
+Use tokens for visual values: color, size, weight, and motion. Dynamic user data is an exception, such as a selected color or drag position. Calculate these values for inline use. They do not require theming.
 
 ## Color: the primitive layer
 
@@ -84,7 +84,7 @@ Reach for the semantic alias whenever one fits. Reach for the primitive only whe
 
 Use this scale instead of arbitrary pixel/rem values. Snap to the nearest step. `padding: 18px` should be `padding: var(--hf-space-4)` (16px) or `padding: var(--hf-space-5)` (20px). Picking a between-step value defeats the consistency the scale provides.
 
-Utility classes wrap the most common cases: `.hf-p-4`, `.hf-px-3`, `.hf-py-2`, `.hf-mb-4`, `.hf-gap-2`. Use them in markup when convenient; use `var(--hf-space-N)` in component CSS.
+Utility classes wrap the most common cases: `.hf-p-4`, `.hf-px-3`, `.hf-py-2`, `.hf-mb-4`, `.hf-gap-2`. Use them in markup when convenient. Use `var(--hf-space-N)` in component CSS.
 
 ## Border radii
 
@@ -99,7 +99,7 @@ Utility classes wrap the most common cases: `.hf-p-4`, `.hf-px-3`, `.hf-py-2`, `
 --hf-radius-full  /* 50% — circles, dots, avatars */
 ```
 
-Note the size oddity: `--hf-radius-md` (6px) is *smaller* than the unsuffixed `--hf-radius` (8px), even though the name suggests it'd be larger. The "md" naming is preserved for historical reasons; treat the scale as `none < sm < md < <unsuffixed> < lg < xl`.
+Note the size oddity: `--hf-radius-md` (6px) is *smaller* than the unsuffixed `--hf-radius` (8px), even though the name suggests it'd be larger. The "md" naming is preserved for historical reasons. Treat the scale as `none < sm < md < <unsuffixed> < lg < xl`.
 
 ## Shadows
 
@@ -112,11 +112,11 @@ Note the size oddity: `--hf-radius-md` (6px) is *smaller* than the unsuffixed `-
 --hf-glow-accent  /* accent-colored glow for highlights */
 ```
 
-Themes can override shadow opacity. The dark-mode defaults assume a black backdrop; lighter themes typically reduce alpha.
+Themes can override shadow opacity. The dark-mode defaults assume a black backdrop. Lighter themes typically reduce alpha.
 
 ## LED readout colors (industrial)
 
-`<led-matrix>` paints to a `<canvas>`, so it reads these as concrete color values at paint time (each has a built-in fallback if the token is absent):
+`<led-matrix>` reads these color values when painting its `<canvas>`. Each token has a built-in fallback if absent:
 
 ```
 --hf-led-bg    /* readout background (near-black) */
@@ -125,7 +125,7 @@ Themes can override shadow opacity. The dark-mode defaults assume a black backdr
 --hf-led-hi    /* highlight pixel (near-white cyan) */
 ```
 
-Override them (globally or in a scope) to reskin the readout — e.g., an amber-phosphor variant. These are the only tokens read from a canvas rather than resolved by the cascade, so a theme that wants to restyle the LED look must define them explicitly.
+Override LED tokens globally or within a scope to change the readout, such as an amber-phosphor variant. Only canvas rendering reads these tokens directly. A theme must define them explicitly to change the LED appearance.
 
 ## Typography
 
@@ -156,7 +156,7 @@ Override them (globally or in a scope) to reskin the readout — e.g., an amber-
 --hf-tracking-wide    /* 0.05em — used for labels, all-caps */
 ```
 
-The **industrial** design language (opt-in: `industrial.css` + `data-language="industrial"` on `<html>`) overrides `--hf-font-family` with Atkinson Hyperlegible — a more utilitarian, instrument-panel typeface. It's a typeface layer, orthogonal to the color theme; see `theming.md` and `setup.md`.
+The **industrial** design language (opt-in: `industrial.css` + `data-language="industrial"` on `<html>`) overrides `--hf-font-family` with Atkinson Hyperlegible — a more utilitarian, instrument-panel typeface. It's a typeface layer, orthogonal to the color theme. See `theming.md` and `setup.md`.
 
 ## Controls (form elements)
 
@@ -203,7 +203,7 @@ Several handfish surfaces use glass blur:
 --hf-header-transparency  /* 35% */
 ```
 
-The `.hf-surface`, `.hf-panel`, `.hf-card` utility classes apply these in the conventional combination. Reach for the utility class first; fall back to composing the variables directly only if the layout calls for something custom.
+The `.hf-surface`, `.hf-panel`, `.hf-card` utility classes apply these in the conventional combination. Reach for the utility class first. Fall back to composing the variables directly only if the layout calls for something custom.
 
 ## Z-index scale
 
@@ -220,7 +220,7 @@ The `.hf-surface`, `.hf-panel`, `.hf-card` utility classes apply these in the co
 
 The values are deliberately small (100-spaced) so app-level overlays can interleave cleanly. Use the tokens for new overlays, or interleave at the gaps (e.g., `var(--hf-z-modal) + 1` for a confirm-dialog above your modal).
 
-Caveat: the live tooltip layer (`#hf-tooltip-layer`) hardcodes `z-index: 100000` rather than reading the `--hf-z-tooltip` token, so in practice nothing in app code can shadow handfish tooltips. The token is still the right value to use for *your* tooltip-tier overlays — and if handfish ever fixes the layer to read the token, your code stays correct.
+The live tooltip layer (`#hf-tooltip-layer`) hardcodes `z-index: 100000` instead of reading `--hf-z-tooltip`. In practice, app code cannot cover handfish tooltips. Use `--hf-z-tooltip` for your tooltip-level overlays. Your code remains correct if handfish later makes its layer use that token.
 
 ## OKLCH: the color format you'll see
 
@@ -228,7 +228,7 @@ Handfish colors are written in OKLCH (`oklch(lightness% chroma hue)`). OKLCH is 
 
 Why this matters in practice:
 
-- **Hue families stay coherent.** A theme can use one hue (e.g., 264° for the default dark) across all neutrals, and the colors look like a family. RGB doesn't have a single "hue" axis.
+- **Hue families stay coherent.** A theme can use one hue across all neutrals, such as 264° for default dark. The colors then remain related. RGB has no single hue axis.
 - **Chroma controls saturation independently of lightness.** You can dim a color without it shifting toward a different hue.
 - **Color-mixing math behaves intuitively.** `color-mix(in srgb, ...)` with OKLCH-defined inputs produces clean blends.
 
@@ -236,4 +236,4 @@ You don't need to write OKLCH math by hand — `colorConversions.js` (see `color
 
 ## Adding a new token
 
-If you find yourself reaching for a value that doesn't have a token, the right move is usually to add one rather than hardcode it. Add it to `tokens.css` (or the appropriate theme file if it's theme-specific), give it a semantic name (`--hf-<category>-<purpose>`), and document its purpose. Then use the new token everywhere — including in the theme overrides for any other themes the value should differ in.
+If no token fits a required value, usually add one instead of hardcoding it. Add it to `tokens.css`, or to the relevant theme file for a theme-specific value. Give it a semantic name such as `--hf-<category>-<purpose>`. Document its purpose. Use it everywhere, including overrides for themes where its value should differ.

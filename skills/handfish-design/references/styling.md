@@ -18,14 +18,14 @@ There is no Shadow DOM. The component renders into the regular page DOM, and its
 
 ## Why no Shadow DOM
 
-Shadow DOM gives you encapsulation: styles inside the shadow root can't leak out, and styles outside can't leak in (except via `::part()`, custom properties, and a few other narrow channels). That sounds appealing until you realize what it costs:
+Shadow DOM isolates styles inside and outside the shadow root. Exceptions include `::part()`, custom properties, and a few other channels. This isolation has costs:
 
-- **Token theming gets harder.** Custom properties do pierce shadow boundaries, so theming still works — but if you want to override anything else, you need `::part()` exposure declared by the component author, or you can't.
+- **Token theming gets harder.** Custom properties cross shadow boundaries, so token themes still work. Other overrides require the component author to expose the relevant `::part()`.
 - **Selector overrides are impossible.** "Make the slider thumb 2px larger" is a one-line CSS change in light DOM. In shadow DOM it's either impossible or requires the component to expose a part for it.
 - **Debugging is harder.** Computed styles for shadow elements are partially opaque in DevTools. Light DOM elements are fully inspectable.
 - **The mental model is heavier.** Light DOM means "the page is the page." Shadow DOM means "the page contains pockets of separate documents."
 
-For a design system that's used across many apps with different needs, the trade-off is clearly in favor of light DOM. App authors get full power; they pay for it with discipline.
+For a design system that's used across many apps with different needs, the trade-off is clearly in favor of light DOM. App authors get full power. They pay for it with discipline.
 
 That discipline is what this reference is about.
 
@@ -35,7 +35,7 @@ When you need to change how a handfish component looks, work in this order:
 
 ### 1. Override at the token layer (preferred)
 
-If the change is "I want a different color/size for this," the right move is usually to override the relevant `--hf-*` token in a scope that contains the component(s) you want to affect:
+For a different color or size, usually override the relevant `--hf-*` token within a scope containing the affected components:
 
 ```css
 /* All sliders inside .preview-panel use a green accent */
@@ -84,7 +84,13 @@ This is the cleanest way to react to component state from app CSS.
 
 ### `!important`
 
-The legitimate uses of `!important` inside handfish are a few narrow, deliberate cases: the three declarations in the `prefers-reduced-motion` block of `index.css` (forcing `animation-duration`, `animation-iteration-count`, and `transition-duration` to ~0 when the user prefers reduced motion), the `[hidden]` visibility guards on `<menu-bar>` and `<seance-dialog>` (so an app `display` rule at any specificity can't resurrect a menu/dialog the component's JS has hidden), and `<code-editor>`'s reset of its native `<textarea>`'s `border` / `outline` / `box-shadow`. Each is a place where the component must win unconditionally. Don't add new `!important` rules in app CSS that targets handfish components. If your override isn't winning, it's because the selector isn't specific enough. `!important`:
+Handfish limits internal `!important` use to these cases:
+
+- Three `prefers-reduced-motion` declarations in `index.css` reduce `animation-duration`, `animation-iteration-count`, and `transition-duration` to approximately zero.
+- `[hidden]` guards on `<menu-bar>` and `<seance-dialog>` prevent app `display` rules from revealing JS-hidden menus or dialogs.
+- `<code-editor>` resets its native `<textarea>` border, outline, and box-shadow.
+
+Each case requires the component rule to win unconditionally. Do not add new `!important` rules in app CSS for handfish components. If an override loses, increase selector specificity. `!important` has these effects:
 
 - Makes the next person's override impossible (you have to outscore `!important` with another `!important`, which becomes a never-ending arms race).
 - Hides selector specificity bugs that would be obvious otherwise.
@@ -94,13 +100,13 @@ When tempted to use `!important`, instead:
 
 1. Look at the rule you're trying to override. Note its specificity.
 2. Write a more specific selector. Adding a parent class is usually enough.
-3. If it's already maximally specific (like `body.app toggle-switch[checked] .ts-track:focus-visible`), the right move is to override at the *token* layer instead. The component's own selector is locked because the component author optimized it; the token is the seam designed for customization.
+3. If it's already maximally specific (like `body.app toggle-switch[checked] .ts-track:focus-visible`), the right move is to override at the *token* layer instead. The component's own selector is locked because the component author optimized it. The token is the seam designed for customization.
 
 ### Shadow DOM workarounds
 
 Don't wrap handfish components in shadow roots. Don't reach for `::part()` (the handfish components don't define parts because they don't need to). Don't try to use `:host()` selectors on them.
 
-If you find yourself wanting to "encapsulate" a handfish component to prevent style leakage, the fix is the opposite: make your selectors more specific so they don't accidentally apply to handfish elements you didn't mean to touch. `.my-section button` is greedy and will hit handfish's internal buttons. `.my-section > button` (direct child) or `.my-section .my-action-row > button` is safer.
+To prevent unintended style matches, make selectors more specific. `.my-section button` also matches handfish's internal buttons. `.my-section > button` or `.my-section .my-action-row > button` restricts the target more safely.
 
 ### Inline styles for static values
 
@@ -124,7 +130,7 @@ Write:
 }
 ```
 
-The exception is dynamic values that can only exist at runtime — a color the user picked, a width computed from drag input, a position calculated from container size. Those go inline because there's no stylesheet that could express them.
+Dynamic runtime values are an exception. These include a selected color, width from drag input, or position from container size. Use inline styles for values that a stylesheet cannot express.
 
 ### Hardcoded colors / spacings / radii
 
@@ -134,7 +140,7 @@ The exception is values inside CSS that genuinely must be primitives — `0`, `1
 
 ## Logical properties, not physical (RTL-readiness)
 
-Handfish components live in the light DOM and inherit `dir` from `<html>`, so an app can go right-to-left with a single `dir="rtl"`. That only pays off if the CSS around them flips too. When you write app CSS or override component styles, reach for CSS **logical** properties instead of physical left/right ones — they resolve against text direction and flip for free in RTL:
+Handfish components use light DOM and inherit `dir` from `<html>`. Setting `dir="rtl"` changes their direction. App CSS must also support that direction. Use logical CSS properties for app styles and component overrides. These properties follow text direction:
 
 | Physical (fixed) | Logical (flips with direction) |
 |------------------|-------------------------------|
@@ -151,9 +157,9 @@ Handfish's own components (`<menu-bar>`, and the `start`/`end` alignment options
 .hf-border-inline-end   { border-inline-end:   var(--hf-border-width) solid var(--hf-border); }
 ```
 
-Physical properties aren't banned — sometimes you genuinely mean "the left edge regardless of direction" (a fixed hardware layout, a diagram). But default to logical; reach for physical only when the position is intentionally direction-independent. See `references/i18n.md` for the full bidi story, including isolating dynamic user-supplied strings with `<bdi>`.
+Physical properties aren't banned — sometimes you genuinely mean "the left edge regardless of direction" (a fixed hardware layout, a diagram). But default to logical. Reach for physical only when the position is intentionally direction-independent. See `references/i18n.md` for the full bidi story, including isolating dynamic user-supplied strings with `<bdi>`.
 
-## Verifying styling work
+## Checking styling work
 
 After making a styling change, before committing:
 
@@ -167,10 +173,10 @@ After making a styling change, before committing:
 
 **"My color isn't applying."** Open DevTools, inspect the element, look at Computed → the property in question. The "Computed" tab shows which rule won and where each rule lives. If the wrong rule is winning, it's almost always specificity. If the right rule is winning but the *value* is wrong, it's almost always a token resolving to something unexpected (often because of theme).
 
-**"It's right in dark mode and wrong in light mode."** A hardcoded value somewhere on the path. `grep` your component for hex codes; trace each one to a token.
+**"It's right in dark mode and wrong in light mode."** A hardcoded value somewhere on the path. `grep` your component for hex codes. Trace each one to a token.
 
 **"The component looks broken — text is unstyled, controls have no bg."** The handfish CSS isn't loading. Check the `<link rel="stylesheet" href=".../styles/index.css">` is present and the URL is reachable. Check the browser console for 404s.
 
 **"The component renders as text, not as a styled control."** The custom element isn't registered. Check that the corresponding class is imported (`import { ToggleSwitch } from 'handfish'`) somewhere on the page. The import is what registers the element.
 
-**"My override works, but only for new instances."** You're using a selector that targets a class set after construction. Check the component's source for when that class is added; you may need to listen for an event or use an attribute selector instead.
+**"My override works, but only for new instances."** You're using a selector that targets a class set after construction. Check the component's source for when that class is added. You may need to listen for an event or use an attribute selector instead.
