@@ -81,10 +81,9 @@ The plugin includes domain-specific reference documents that Claude loads contex
 
 The last API audit was **2026-08-12**, against **handfish `0.10`** at HEAD commit [`9bbb287`](https://github.com/noisefactorllc/handfish/commit/9bbb287). It covered all industrial components (`knob-dial`, `led-matrix`, `tempo-bar`), `menu-bar`, and the Seance components (`seance-dialog`, `session-status`, `join-session-dialog`). It also covered code-editor collaboration APIs, bidi/RTL support, and `shortcuts` utilities. The generated `references/api-canonical.md` records separate provenance. Its JSON last changed at commit [`d8d350c`](https://github.com/noisefactorllc/handfish/commit/d8d350c) on 2026-07-28, when the extracted API last changed.
 
-handfish ships components on its own cadence, and nothing about this repo
-changes when it does — which is exactly how a plugin ends up teaching Claude a
-catalog that is missing a third of the library. Two surfaces drift, and both
-are now checked rather than remembered:
+handfish ships components independently of this repo. This repo does not
+update automatically when handfish ships, so the plugin can teach Claude a
+catalog missing a third of the library. Checks cover both surfaces that can drift:
 
 - `references/api-canonical.md` — generated from handfish's machine-extracted
   `docs/component-api.json`.
@@ -98,21 +97,20 @@ npm run check     # is api-canonical.md current? (read-only, exits non-zero if n
 npm run regenerate
 ```
 
-The drift checks need a sibling handfish checkout at `../handfish`. Without one
-they skip, so the suite still runs standalone. CI mirrors that split: the `test`
-job gates changes to this repo with the drift checks skipped, so an unrelated PR
-never goes red because handfish shipped something that morning. A separate
-weekly `drift` job clones handfish and runs them live.
+The drift checks need a sibling handfish checkout at `../handfish`. Without one,
+they skip, so the suite still runs standalone. The CI `test` job gates changes
+to this repo with the drift checks skipped. Thus, a handfish release cannot
+fail an unrelated PR. A separate weekly `drift` job clones handfish and runs
+the checks live.
 
-The generator's output is deterministic — the same input always produces
-byte-identical output, and provenance comes from git rather than a wall clock.
-An empty diff therefore means nothing changed, which is what makes the check
-possible at all.
+The generator produces byte-identical output for the same input. Provenance
+comes from git rather than a wall clock. An empty diff therefore means
+nothing changed, which makes the check possible.
 
 When handfish ships something new:
 
 1. `cd ../handfish && git pull && node scripts/generate-component-api.js`
-2. `npm run regenerate` here, and review the diff.
+2. Run `npm run regenerate` here. Review the diff.
 3. Add any new tags to the `description` in `SKILL.md` (`npm test` names the
    missing ones).
 4. Update prose in `components.md` for anything whose API changed.
