@@ -5,7 +5,7 @@
 ## Provenance
 
 - **handfish version:** 0.10
-- **handfish commit (last touched the JSON):** `d8d350c2` (2026-07-28T14:11:00-06:00)
+- **handfish commit (last touched the JSON):** `94d9b97d` (2026-09-19T13:51:09-06:00)
 - **This file regenerated:** deterministically from the commit above — run `git log` on this file for when.
 - **Generator:** `handfish/scripts/generate-component-api.js` → JSON → `handfish-design/scripts/regenerate-canonical-api.js` → this file
 
@@ -39,9 +39,12 @@ Total: **21** registered custom elements. Form-associated components are tagged 
 - `caret-color`
 - `selection-color`
 - `line-numbers`
+- `aria-label`
+- `aria-labelledby`
 
 **Events:**
 
+- `collabdesync` — CustomEvent, `event.detail = { reason, requested, applied, length, source }`
 - `forceevalblock` — CustomEvent. Static extraction cannot determine the detail. Check the source.
 - `forcerecompile` — CustomEvent. Static extraction cannot determine the detail. Check the source.
 - `selectionchange` — CustomEvent, `event.detail = { start, end, direction, value }`
@@ -307,6 +310,7 @@ _No events dispatched._
 - `connecting-label`
 - `online-label`
 - `url-label`
+- `readonly-label`
 
 **Events:**
 

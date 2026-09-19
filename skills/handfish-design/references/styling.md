@@ -29,6 +29,60 @@ For a design system that's used across many apps with different needs, the trade
 
 That discipline is what this reference is about.
 
+## Complete-surface styling contract
+
+A handfish page is complete only when its full rendered surface belongs to the same design system. Styling the main cards while leaving native controls or browser chrome untouched produces an unfinished page. Do not stop at the elements named in the feature brief.
+
+Inventory these surfaces before completion:
+
+| Surface | Check |
+|---------|-------|
+| Actions | Buttons, links, icon controls, menu triggers, and pagination |
+| Input | Input, select, textarea, range, checkbox, radio, file, placeholder, invalid, and disabled states |
+| Content | Tables, lists, code/pre blocks, figures, empty states, and loading states |
+| Overlays | Dialogs, popovers, menus, tooltips, backdrops, and disclosure controls |
+| Browser-owned UI | Focus rings, text selection, autofill, scrollbars, scrollbar corners, and resize affordances |
+| States | Default, hover, active, focus-visible, disabled, selected, checked, open, and invalid |
+
+Not every semantic element needs its own decoration. It must, however, intentionally inherit a handfish rule or receive token-based app CSS. If an element still looks like an unrelated operating-system default, the styling pass is not complete.
+
+### Scrollbars
+
+Scrollable panels are visible controls. Style their track, thumb, hover state, and corner with handfish tokens. Use the standard properties for Firefox and the WebKit pseudo-elements for Chromium and Safari:
+
+```css
+.scroll-region {
+    scrollbar-color: var(--hf-border-hover) var(--hf-bg-surface);
+    scrollbar-width: thin;
+}
+
+.scroll-region::-webkit-scrollbar {
+    inline-size: var(--hf-space-3);
+    block-size: var(--hf-space-3);
+}
+
+.scroll-region::-webkit-scrollbar-track,
+.scroll-region::-webkit-scrollbar-corner {
+    background: var(--hf-bg-surface);
+}
+
+.scroll-region::-webkit-scrollbar-thumb {
+    background: var(--hf-bg-muted);
+    border: var(--hf-border-width) solid var(--hf-bg-surface);
+    border-radius: var(--hf-radius-pill);
+}
+
+.scroll-region::-webkit-scrollbar-thumb:hover {
+    background: var(--hf-accent);
+}
+
+.scroll-region::-webkit-scrollbar-thumb:active {
+    background: var(--hf-accent-hover);
+}
+```
+
+Keep the scroll region keyboard-focusable when scrolling can hide content. Preserve its `:focus-visible` outline. Check vertical and horizontal scrollbars, because a data table can expose both at the same time. In forced-colors mode, do not disable the browser's system-color substitutions.
+
 ## Overriding component styles
 
 When you need to change how a handfish component looks, work in this order:
@@ -163,11 +217,13 @@ Physical properties aren't banned — sometimes you genuinely mean "the left edg
 
 After making a styling change, before committing:
 
-1. **Switch themes.** Rotate `data-theme` through at least three (e.g., `dark`, `cyberpunk`, `neutral-light`). The changes should look right in all of them. If they look right in only one, find the hardcoded value.
-2. **Inspect specificity in DevTools.** Open the styled element. The rule you wrote should be in Computed → with no `!important` lighting it up. The rule's selector should outscore any handfish rule it's beating.
-3. **Hover, focus, click, disable.** Component states have their own styles. Make sure your override doesn't drop the hover ring or the focus outline. Tab to the element and confirm the focus ring still appears.
-4. **No new `!important`.** `git diff` and `grep` for `!important`. There should be none.
-5. **No new hardcoded colors.** `git diff` and `grep` for hex codes (`#[0-9a-f]\{3,8\}`), `rgb(`, `rgba(`, `oklch(`, `hsl(`. Each hit either has a justification (genuinely dynamic) or needs to become a `var(--hf-*)`.
+1. **Audit surface coverage.** Walk the rendered DOM and every scroll container. Find native controls, browser chrome, and states that still use unrelated default styling.
+2. **Switch themes.** Rotate `data-theme` through at least three (e.g., `dark`, `cyberpunk`, `neutral-light`). The changes should look right in all of them. If they look right in only one, find the hardcoded value.
+3. **Inspect specificity in DevTools.** Open the styled element. The rule you wrote should be in Computed → with no `!important` lighting it up. The rule's selector should outscore any handfish rule it's beating.
+4. **Hover, focus, click, disable.** Component states have their own styles. Make sure your override doesn't drop the hover ring or the focus outline. Tab to the element and confirm the focus ring still appears.
+5. **Inspect scrolling.** Check vertical and horizontal scrollbar tracks, thumbs, hover states, corners, keyboard focus, and forced-colors behavior.
+6. **No new `!important`.** `git diff` and `grep` for `!important`. There should be none.
+7. **No new hardcoded colors.** `git diff` and `grep` for hex codes (`#[0-9a-f]\{3,8\}`), `rgb(`, `rgba(`, `oklch(`, `hsl(`. Each hit either has a justification (genuinely dynamic) or needs to become a `var(--hf-*)`.
 
 ## Common debugging scenarios
 

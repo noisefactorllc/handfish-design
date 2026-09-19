@@ -361,10 +361,12 @@ Observed attributes:
 | `font-family`, `font-size` | string | Editor typography |
 | `background-color`, `background-opacity`, `text-color`, `text-bg-color`, `caret-color`, `selection-color` | string | Per-editor color overrides (escape hatch from theme tokens) |
 | `line-numbers` | boolean | Show line-number gutter |
+| `aria-label`, `aria-labelledby` | string | Accessible name forwarded to the inner editable textarea |
 
 Events:
 - `input` — `CustomEvent` on every edit. `event.detail = { value, previousValue, edit, source }`. `edit` describes the applied splice as `{ start, end, text }`. `source` is `'user'` for typing. For `replaceRange`/`applyTextEdit`, it is the caller-supplied source, defaulting to `'api'`. Use `source` to avoid sending received remote edits again.
 - `selectionchange` — `CustomEvent` when the caret/selection moves. `event.detail = { start, end, direction, value }`.
+- `collabdesync` — `CustomEvent` when a requested edit exceeds the current document range. `event.detail = { reason, requested, applied, length, source }`. Resynchronize the collaborating document instead of treating the clamped edit as authoritative.
 - `forcerecompile` — `CustomEvent` on **Ctrl/Cmd+Enter**. The signal to recompile/run the whole buffer. No `detail`. Read `el.value`.
 - `forceevalblock` — `CustomEvent` on **Alt+Enter** (or Ctrl/Cmd+Shift+Enter). The signal to evaluate just the current block/line. No `detail`. The consumer decides what "block" means and reads `el.value` + `getSelectionRange()`.
 
@@ -372,9 +374,11 @@ Editor themes are independent from the page theme — they style syntax tokens s
 
 **Collaboration API (remote cursors, programmatic edits, line flashing).** `<code-editor>` is transport-agnostic — it owns no networking. A collaboration host drives it through these methods and renders whatever it pushes:
 
+- `CodeEditor.collabApiVersion` is `2`. Check it before using the version 2 desynchronization and remote-selection lifecycle contracts.
 - `replaceRange(start, end, text, opts)` / `applyTextEdit({start, end, text}, opts)` apply programmatic edits. Pass `{ emitInput: true, source: 'remote' }` to emit `input` with your source. You can then ignore that event when it returns. `opts.select`, default `'preserve'`, controls caret placement.
 - `getSelectionRange()` / `setSelectionRange(start, end, direction)` — read/write the local selection.
 - `setRemoteSelections([...])`, `setRemoteSelection(sel)`, `clearRemoteSelection(id)`, and `clearRemoteSelections()` render other users' cursors and selections. Each entry is `{ id, label, color, start, end }`. `color` is a CSS string, defaulting to `#5a7fdd`. The component calculates the cursor and selection palette internally. Do not pass a `palette`. Each selection shows a labeled remote caret.
+- `pruneRemoteSelections(maxAgeMs, now)` removes remote selections that are older than the specified maximum age.
 - `flashLines(startLine, endLine, { tone })` — briefly highlight a 1-based line range. `tone` is `'eval'` (default), `'error'`, or `'remote'`. Use it to flash an evaluated block or a collaborator's applied edit.
 - `setTokenizer(fn)`, `getTextarea()`, `getDisplay()` — swap the tokenizer at runtime / reach the underlying nodes.
 
@@ -561,7 +565,7 @@ This modal manages going online, joining by session id, and the live session's i
 | `state` | App-reflected session state: `offline` \| `connecting` \| `online` \| `readonly` |
 | `session-id` / `session-url` | The live session's id and shareable URL |
 | `copy` | Body copy |
-| `take-label`, `join-label`, `join-label-text`, `join-placeholder`, `copy-label`, `offline-label`, `offline-status-label`, `connecting-label`, `online-label`, `url-label` | Overridable strings for every control and status line — localize these |
+| `take-label`, `join-label`, `join-label-text`, `join-placeholder`, `copy-label`, `offline-label`, `offline-status-label`, `connecting-label`, `online-label`, `readonly-label`, `url-label` | Overridable strings for every control and status line — localize these |
 
 Open and close it imperatively: **`el.show()`** opens the modal (a native `<dialog>` via `showModal()` under the hood), **`el.hide()`** closes it (`el.hide({ emitCancel: true })` also fires `cancel`). It's `hidden` until shown.
 

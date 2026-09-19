@@ -19,6 +19,7 @@ The library has three central design choices. Apply all three:
 These exist because each one corresponds to a class of bug that someone has already shipped:
 
 - **Use `--hf-*` tokens for every color, spacing, radius, shadow, font, and transition.** Hardcoded values look correct in the original theme and wrong in others. If the required token does not exist, add one.
+- **Style the complete rendered surface, not only the primary components.** Inventory each visible surface, interactive element, and browser-owned control on the page. Use a handfish component or utility for each element. If none applies, add deliberate token-based CSS. This requirement includes buttons, links, native form controls, tables, code blocks, dialogs, disclosure controls, text selection, and scrollbars. Cover each applicable state: default, hover, active, focus-visible, disabled, selected, checked, open, invalid, and placeholder. Do not leave an operating-system-default island inside a handfish page. Read `references/styling.md` before you style a complete page or scroll region.
 - **No `!important` for color, layout, or spacing overrides.** Handfish uses the global cascade. If an override loses, increase selector specificity. `!important` prevents later overrides and encourages more `!important` rules. Handfish permits a few internal exceptions: reduced-motion rules in `index.css`, `[hidden]` guards on `<menu-bar>` and `<seance-dialog>`, and `<code-editor>` textarea border/outline resets. The visibility guards prevent app styles from revealing menus or dialogs that JS hides. Do not add new `!important` rules in app CSS.
 - **No Shadow DOM workarounds.** Components are deliberately in the light DOM so they can be themed and overridden. Don't wrap them in shadow roots, don't use `::part()`, don't reach for `:host()`. Style them like any other element.
 - **No inline `style=""` for static values.** Inline styles outrank stylesheets and interfere with token-based themes. Dynamic user data is an exception, including a selected color, drag position, or width calculated at runtime. Put static layout, color, and spacing in CSS.
@@ -72,7 +73,7 @@ Before doing the work, load the reference that matches what you're doing. They c
 | Switching themes, building a custom theme, supporting both dark and light, or debugging a theme that "looks wrong" | `references/theming.md` |
 | Using a handfish component (which tag, which attributes, which events, how to read the value, form integration) | `references/components.md` |
 | Authoritative attributes, event details, or form-association status when prose seems incorrect or outdated | `references/api-canonical.md` (generated from handfish source, takes precedence) |
-| Overriding the appearance of a handfish component, fighting a specificity battle, or wondering why your CSS isn't taking effect | `references/styling.md` |
+| Styling a complete page or scroll region, overriding a handfish component, fighting specificity, or finding an unstyled native element | `references/styling.md` |
 | RTL / bidi interfaces, `dir`, translated component strings, or layout that follows text direction | `references/i18n.md` |
 | Converting between RGB / HSV / OkLab / OKLCH / hex, picking a contrasting color, or doing any color math | `references/color.md` |
 | Showing a toast, hooking up the escape key for a custom modal, or initializing tooltips | `references/utilities.md` |
@@ -97,6 +98,7 @@ This 30-second orientation prevents the most common debugging dead-end: editing 
 
 Before you commit a change that affects what users see:
 
+- **Complete-surface sweep.** Inventory the rendered page, including native controls and browser chrome. Check buttons, links, inputs, tables, code/pre blocks, dialogs, disclosure controls, text selection, and every scroll container. No visible area should fall back to unrelated operating-system styling.
 - **Theme sweep.** Switch through at least two themes (e.g., the default dark, plus `corporate` or `cyberpunk` for high contrast difference). If anything you changed only looks right in one theme, you've hardcoded a value somewhere.
 - **No new hardcoded colors.** `grep` your diff for hex codes (`#[0-9a-f]\{3,8\}`), `rgb(`, `rgba(`, `oklch(`, and `hsl(`. Each hit needs a justification — usually it should become a `--hf-*` reference.
 - **No new `!important`.** Search the diff for `!important` with `grep`. Do not add it in app CSS. The hard rules list handfish's internal exceptions. Fix selector specificity instead.
@@ -107,6 +109,7 @@ Before you commit a change that affects what users see:
 
 A handfish change is done when all of the following are true. If any are false, keep going:
 
+- [ ] **The whole rendered surface is intentional.** Native controls, tables, code surfaces, disclosures, selection, and scrollbars match the surrounding handfish design. Style each applicable interaction state.
 - [ ] **It works in at least two themes.** Switch `data-theme` and check the change still looks right.
 - [ ] **No hardcoded colors / spacings / radii / shadows / fonts in the diff.** Everything is `var(--hf-*)`.
 - [ ] **No `!important` in the diff.**
