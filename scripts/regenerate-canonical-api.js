@@ -38,7 +38,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
@@ -86,14 +86,14 @@ const data = JSON.parse(readFileSync(inputPath, 'utf8'))
 // reproducible enough to check.
 const handfishRoot = dirname(dirname(inputPath))
 
-function git(command) {
-    return execSync(command, { cwd: handfishRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+function git(...args) {
+    return execFileSync('git', args, { cwd: handfishRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
 function gitInfoForJson() {
     let shallow = false
     try {
-        shallow = git('git rev-parse --is-shallow-repository') === 'true'
+        shallow = git('rev-parse', '--is-shallow-repository') === 'true'
     } catch {
         // Not a git checkout at all — fall through to the unknown provenance
         // path below, which is a supported (if unhelpful) state.
@@ -110,11 +110,11 @@ function gitInfoForJson() {
         return { sha: 'unknown', shortSha: 'unknown', date: 'unknown' }
     }
     try {
-        const sha = git(`git log -1 --format=%H -- ${JSON.stringify(inputPath)}`)
-        const date = git(`git log -1 --format=%cI -- ${JSON.stringify(inputPath)}`)
+        const sha = git('log', '-1', '--format=%H', '--', inputPath)
+        const date = git('log', '-1', '--format=%cI', '--', inputPath)
         if (!sha) return { sha: 'unknown', shortSha: 'unknown', date: 'unknown' }
         try {
-            if (git(`git status --porcelain -- ${JSON.stringify(inputPath)}`)) {
+            if (git('status', '--porcelain', '--', inputPath)) {
                 console.error(`Warning: ${inputPath} has uncommitted changes.`)
                 console.error(`  Provenance will read ${sha.slice(0, 8)}, which is not the content being read.`)
                 console.error('  Commit the JSON first, or expect this reference to go stale the moment it is.')
