@@ -2,6 +2,10 @@
 
 Use this reference when adding, porting, or modifying a component in the handfish repo. For app-side use of handfish, read the other references.
 
+Pull requests to handfish follow the Noise Factor [contributing policy](https://github.com/noisefactorllc/.github/blob/main/CONTRIBUTING.md) and
+[Code of Conduct](https://github.com/noisefactorllc/.github/blob/main/CODE_OF_CONDUCT.md). New components start as an issue whose scope is agreed
+before work begins.
+
 ## Repo layout
 
 ```
