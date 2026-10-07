@@ -221,8 +221,8 @@ function validateShape(data) {
             if (def == null) continue
             if (!isPlainObject(def)) {
                 problems.push(`toast_helpers.defaults.${name}: expected an object`)
-            } else if (def.duration != null && typeof def.duration !== 'number') {
-                problems.push(`toast_helpers.defaults.${name}.duration: expected a number`)
+            } else if (def.duration != null && !Number.isFinite(def.duration)) {
+                problems.push(`toast_helpers.defaults.${name}.duration: expected a finite number`)
             }
         }
     }
@@ -241,8 +241,12 @@ function validateShape(data) {
     }
 
     const themes = data.themes
-    if (!isPlainObject(themes) || typeof themes.count_files !== 'number' ||
-        typeof themes.count_data_theme_values !== 'number' || !Array.isArray(themes.entries)) {
+    if (!isPlainObject(themes) || !Number.isFinite(themes.count_files) ||
+        !Number.isFinite(themes.count_data_theme_values) || !Array.isArray(themes.entries)) {
+        // Number.isFinite rather than typeof === 'number': JSON's `1e999`
+        // parses to Infinity, which is a number that would render as
+        // "Infinity theme files". The counts are interpolated unchecked, so
+        // only a finite number is a valid count.
         problems.push('themes: expected { count_files, count_data_theme_values, entries }')
     } else {
         themes.entries.forEach((t, i) => {

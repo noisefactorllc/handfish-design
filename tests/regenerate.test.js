@@ -211,7 +211,19 @@ test('nested sections the renderer dereferences are validated, not left to crash
         {
             name: 'a non-numeric toast default duration',
             mutate: (api) => { api.toast_helpers.defaults.showToast.duration = 'slow' },
-            problem: /toast_helpers\.defaults\.showToast\.duration: expected a number/,
+            problem: /toast_helpers\.defaults\.showToast\.duration: expected a finite number/,
+        },
+        {
+            name: 'a non-finite toast default duration',
+            // JSON's 1e999 parses to Infinity, which typeof calls a number;
+            // JSON.stringify cannot emit it, so splice the raw text instead.
+            mutateText: (text) => text.replace('"duration":2000', '"duration":1e999'),
+            problem: /toast_helpers\.defaults\.showToast\.duration: expected a finite number/,
+        },
+        {
+            name: 'a non-finite theme count',
+            mutateText: (text) => text.replace('"count_files":2', '"count_files":1e999'),
+            problem: /themes: expected \{ count_files, count_data_theme_values, entries \}/,
         },
         {
             name: 'a non-object toast default',
@@ -224,12 +236,14 @@ test('nested sections the renderer dereferences are validated, not left to crash
             problem: /index_exports: expected an array of strings/,
         },
     ]
-    for (const { name, mutate, problem } of cases) {
+    for (const { name, mutate, mutateText, problem } of cases) {
         withTempDir((dir) => {
             const api = JSON.parse(readFileSync(fixture, 'utf8'))
-            mutate(api)
+            if (mutate) mutate(api)
+            let text = JSON.stringify(api)
+            if (mutateText) text = mutateText(text)
             const input = join(dir, 'nested.json')
-            writeFileSync(input, JSON.stringify(api))
+            writeFileSync(input, text)
             const result = run(['--input', input, '--output', join(dir, 'out.md')])
             assert.notEqual(result.status, 0, `${name} must fail the shape check`)
             assert.match(result.stderr + result.stdout, problem, name)
