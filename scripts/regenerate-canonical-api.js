@@ -160,12 +160,18 @@ function isPlainObject(v) {
 }
 
 /**
- * Check the top-level shape this renderer reads, before anything else runs —
+ * Check the shape this renderer actually reads, before anything else runs —
  * including the git provenance step. handfish owns the JSON's schema and
  * ships on its own cadence; if its extractor changes, a maintainer must see
- * which section drifted, not a TypeError from deep inside rendering. Per-
- * element fields matter most: a missing `tag` would render `### <undefined>`
- * as silently wrong output rather than failing.
+ * which field drifted, not a TypeError from deep inside rendering. Nested
+ * fields matter as much as top-level ones: `themes.entries: [null]` passes
+ * any top-level check and still crashes at render time, and a missing `tag`
+ * renders `### <undefined>` as silently wrong output rather than failing.
+ *
+ * Required fields are the ones the renderer dereferences unconditionally;
+ * optional ones (registeredBy, extends, description, observedAttributes,
+ * events, detailKeys, formAssociated) are checked only when present, so a
+ * valid handfish document that simply omits them still passes.
  *
  * Returns a list of problems (empty means the shape is acceptable). Reads
  * with optional chaining throughout so the report never crashes itself.
@@ -179,32 +185,100 @@ function validateShape(data) {
     const requireString = (value, path) => {
         if (typeof value !== 'string') problems.push(`${path}: expected a string`)
     }
+    const optionalString = (value, path) => {
+        // The renderer null-guards these fields (`if (c.extends)`, etc.), so
+        // an explicit null means "absent" — only a present wrong type drifts.
+        if (value != null) requireString(value, path)
+    }
+    const requireStringArray = (value, path) => {
+        if (!Array.isArray(value) || value.some(v => typeof v !== 'string')) {
+            problems.push(`${path}: expected an array of strings`)
+        }
+    }
+    const optionalStringArray = (value, path) => {
+        if (value != null) requireStringArray(value, path)
+    }
 
     if (!isPlainObject(data.meta) || typeof data.meta.handfish_version !== 'string') {
         problems.push('meta.handfish_version: expected a string')
     }
-    for (const key of ['custom_elements', 'classes', 'index_exports']) {
+    for (const key of ['custom_elements', 'classes']) {
         if (!Array.isArray(data[key])) problems.push(`${key}: expected an array`)
     }
+    requireStringArray(data.index_exports, 'index_exports')
+
     const toast = data.toast_helpers
     if (!isPlainObject(toast) || typeof toast.sourceFile !== 'string' ||
-        !Array.isArray(toast.exports) || !isPlainObject(toast.defaults)) {
+        !isPlainObject(toast.defaults)) {
         problems.push('toast_helpers: expected { sourceFile, exports, defaults }')
+    } else {
+        requireStringArray(toast.exports, 'toast_helpers.exports')
     }
     if (!isPlainObject(data.utility_modules)) {
         problems.push('utility_modules: expected an object of { sourceFile, exports } modules')
+    } else {
+        for (const [name, mod] of Object.entries(data.utility_modules)) {
+            const path = `utility_modules.${name}`
+            if (!isPlainObject(mod)) {
+                problems.push(`${path}: expected { sourceFile, exports }`)
+            } else {
+                requireString(mod.sourceFile, `${path}.sourceFile`)
+                requireStringArray(mod.exports, `${path}.exports`)
+            }
+        }
     }
+
     const themes = data.themes
     if (!isPlainObject(themes) || typeof themes.count_files !== 'number' ||
         typeof themes.count_data_theme_values !== 'number' || !Array.isArray(themes.entries)) {
         problems.push('themes: expected { count_files, count_data_theme_values, entries }')
+    } else {
+        themes.entries.forEach((t, i) => {
+            const path = `themes.entries[${i}]`
+            if (!isPlainObject(t)) {
+                problems.push(`${path}: expected { file, dataThemeValues }`)
+            } else {
+                requireString(t.file, `${path}.file`)
+                requireStringArray(t.dataThemeValues, `${path}.dataThemeValues`)
+            }
+        })
     }
 
     if (Array.isArray(data.custom_elements)) {
         data.custom_elements.forEach((c, i) => {
+            const path = `custom_elements[${i}]`
             for (const field of ['tag', 'className', 'sourceFile']) {
-                requireString(c?.[field], `custom_elements[${i}].${field}`)
+                requireString(c?.[field], `${path}.${field}`)
             }
+            optionalString(c?.registeredBy, `${path}.registeredBy`)
+            if (c?.formAssociated != null && typeof c.formAssociated !== 'boolean') {
+                problems.push(`${path}.formAssociated: expected a boolean`)
+            }
+            optionalString(c?.description, `${path}.description`)
+            optionalStringArray(c?.observedAttributes, `${path}.observedAttributes`)
+            if (c?.events !== undefined) {
+                if (!Array.isArray(c.events)) {
+                    problems.push(`${path}.events: expected an array`)
+                } else {
+                    c.events.forEach((e, j) => {
+                        const evPath = `${path}.events[${j}]`
+                        requireString(e?.name, `${evPath}.name`)
+                        requireString(e?.type, `${evPath}.type`)
+                        optionalStringArray(e?.detailKeys, `${evPath}.detailKeys`)
+                    })
+                }
+            }
+        })
+    }
+
+    if (Array.isArray(data.classes)) {
+        data.classes.forEach((c, i) => {
+            const path = `classes[${i}]`
+            for (const field of ['className', 'sourceFile']) {
+                requireString(c?.[field], `${path}.${field}`)
+            }
+            optionalString(c?.extends, `${path}.extends`)
+            optionalString(c?.description, `${path}.description`)
         })
     }
     return problems

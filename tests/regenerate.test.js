@@ -172,6 +172,61 @@ test('a custom element missing its tag is rejected instead of rendering <undefin
     })
 })
 
+test('nested sections the renderer dereferences are validated, not left to crash', () => {
+    // Top-level validation alone is not enough: `themes.entries: [null]`
+    // passes a top-level check and crashes at render time, as does malformed
+    // nested event, utility, or class data. Each case below previously died
+    // inside rendering.
+    const cases = [
+        {
+            name: 'a null theme entry',
+            mutate: (api) => { api.themes.entries = [null] },
+            problem: /themes\.entries\[0\]: expected \{ file, dataThemeValues \}/,
+        },
+        {
+            name: 'a theme entry missing dataThemeValues',
+            mutate: (api) => { delete api.themes.entries[0].dataThemeValues },
+            problem: /themes\.entries\[0\]\.dataThemeValues: expected an array of strings/,
+        },
+        {
+            name: 'an event missing its type',
+            mutate: (api) => { delete api.custom_elements[0].events[0].type },
+            problem: /custom_elements\[0\]\.events\[0\]\.type: expected a string/,
+        },
+        {
+            name: 'a non-string detailKeys entry',
+            mutate: (api) => { api.custom_elements[0].events[0].detailKeys = [42] },
+            problem: /custom_elements\[0\]\.events\[0\]\.detailKeys: expected an array of strings/,
+        },
+        {
+            name: 'a utility module missing exports',
+            mutate: (api) => { delete api.utility_modules[Object.keys(api.utility_modules)[0]].exports },
+            problem: /utility_modules\.fixtureUtil\.exports: expected an array of strings/,
+        },
+        {
+            name: 'a class missing sourceFile',
+            mutate: (api) => { delete api.classes[0].sourceFile },
+            problem: /classes\[0\]\.sourceFile: expected a string/,
+        },
+        {
+            name: 'a non-string index export',
+            mutate: (api) => { api.index_exports[0] = 7 },
+            problem: /index_exports: expected an array of strings/,
+        },
+    ]
+    for (const { name, mutate, problem } of cases) {
+        withTempDir((dir) => {
+            const api = JSON.parse(readFileSync(fixture, 'utf8'))
+            mutate(api)
+            const input = join(dir, 'nested.json')
+            writeFileSync(input, JSON.stringify(api))
+            const result = run(['--input', input, '--output', join(dir, 'out.md')])
+            assert.notEqual(result.status, 0, `${name} must fail the shape check`)
+            assert.match(result.stderr + result.stdout, problem, name)
+        })
+    }
+})
+
 test('a shallow input checkout yields unknown provenance, not the wrong commit', () => {
     // `git log -1 -- <path>` on a shallow clone names the grafted tip as the
     // creator of every file, so provenance would be a plausible lie and the
