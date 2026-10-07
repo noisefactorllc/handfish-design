@@ -209,6 +209,16 @@ test('nested sections the renderer dereferences are validated, not left to crash
             problem: /classes\[0\]\.sourceFile: expected a string/,
         },
         {
+            name: 'a non-numeric toast default duration',
+            mutate: (api) => { api.toast_helpers.defaults.showToast.duration = 'slow' },
+            problem: /toast_helpers\.defaults\.showToast\.duration: expected a number/,
+        },
+        {
+            name: 'a non-object toast default',
+            mutate: (api) => { api.toast_helpers.defaults.showToast = 2000 },
+            problem: /toast_helpers\.defaults\.showToast: expected an object/,
+        },
+        {
             name: 'a non-string index export',
             mutate: (api) => { api.index_exports[0] = 7 },
             problem: /index_exports: expected an array of strings/,

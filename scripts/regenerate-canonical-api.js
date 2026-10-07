@@ -213,6 +213,18 @@ function validateShape(data) {
         problems.push('toast_helpers: expected { sourceFile, exports, defaults }')
     } else {
         requireStringArray(toast.exports, 'toast_helpers.exports')
+        // The renderer interpolates each default's duration unchecked, so a
+        // string like "slow" would silently render "slowms". A missing or
+        // null duration is the renderer's "no default" case and stays valid.
+        for (const name of Array.isArray(toast.exports) ? toast.exports : []) {
+            const def = toast.defaults[name]
+            if (def == null) continue
+            if (!isPlainObject(def)) {
+                problems.push(`toast_helpers.defaults.${name}: expected an object`)
+            } else if (def.duration != null && typeof def.duration !== 'number') {
+                problems.push(`toast_helpers.defaults.${name}.duration: expected a number`)
+            }
+        }
     }
     if (!isPlainObject(data.utility_modules)) {
         problems.push('utility_modules: expected an object of { sourceFile, exports } modules')
