@@ -77,7 +77,31 @@ if (!existsSync(inputPath)) {
     process.exit(1)
 }
 
-const data = JSON.parse(readFileSync(inputPath, 'utf8'))
+const raw = readFileSync(inputPath, 'utf8')
+
+// Corrupt input is a reported condition, not a crash: `JSON.parse`'s raw
+// SyntaxError names a line in this script, not the file a maintainer must
+// regenerate — the same burying that "a missing input is reported" prevents.
+let data
+try {
+    data = JSON.parse(raw)
+} catch (err) {
+    console.error(`Invalid JSON: ${inputPath}`)
+    console.error(`  ${err.message}`)
+    console.error('Regenerate it with: node scripts/generate-component-api.js (in the handfish repo)')
+    process.exit(1)
+}
+
+const shapeProblems = validateShape(data)
+if (shapeProblems.length > 0) {
+    console.error(`Input does not match the component-api.json schema: ${inputPath}`)
+    for (const problem of shapeProblems) {
+        console.error(`  ${problem}`)
+    }
+    console.error('This generator reads the output of handfish/scripts/generate-component-api.js.')
+    console.error('Regenerate the JSON, or update that extractor and this generator together.')
+    process.exit(1)
+}
 
 // The JSON itself is deterministic (no timestamps, no commit hash), and this
 // file emits no timestamp of its own. Provenance is recovered from the
@@ -130,6 +154,61 @@ const provenance = {
 }
 
 // ----- Helpers --------------------------------------------------------------
+
+function isPlainObject(v) {
+    return v !== null && typeof v === 'object' && !Array.isArray(v)
+}
+
+/**
+ * Check the top-level shape this renderer reads, before anything else runs —
+ * including the git provenance step. handfish owns the JSON's schema and
+ * ships on its own cadence; if its extractor changes, a maintainer must see
+ * which section drifted, not a TypeError from deep inside rendering. Per-
+ * element fields matter most: a missing `tag` would render `### <undefined>`
+ * as silently wrong output rather than failing.
+ *
+ * Returns a list of problems (empty means the shape is acceptable). Reads
+ * with optional chaining throughout so the report never crashes itself.
+ */
+function validateShape(data) {
+    if (!isPlainObject(data)) {
+        return ['top level: expected a JSON object']
+    }
+
+    const problems = []
+    const requireString = (value, path) => {
+        if (typeof value !== 'string') problems.push(`${path}: expected a string`)
+    }
+
+    if (!isPlainObject(data.meta) || typeof data.meta.handfish_version !== 'string') {
+        problems.push('meta.handfish_version: expected a string')
+    }
+    for (const key of ['custom_elements', 'classes', 'index_exports']) {
+        if (!Array.isArray(data[key])) problems.push(`${key}: expected an array`)
+    }
+    const toast = data.toast_helpers
+    if (!isPlainObject(toast) || typeof toast.sourceFile !== 'string' ||
+        !Array.isArray(toast.exports) || !isPlainObject(toast.defaults)) {
+        problems.push('toast_helpers: expected { sourceFile, exports, defaults }')
+    }
+    if (!isPlainObject(data.utility_modules)) {
+        problems.push('utility_modules: expected an object of { sourceFile, exports } modules')
+    }
+    const themes = data.themes
+    if (!isPlainObject(themes) || typeof themes.count_files !== 'number' ||
+        typeof themes.count_data_theme_values !== 'number' || !Array.isArray(themes.entries)) {
+        problems.push('themes: expected { count_files, count_data_theme_values, entries }')
+    }
+
+    if (Array.isArray(data.custom_elements)) {
+        data.custom_elements.forEach((c, i) => {
+            for (const field of ['tag', 'className', 'sourceFile']) {
+                requireString(c?.[field], `custom_elements[${i}].${field}`)
+            }
+        })
+    }
+    return problems
+}
 
 function eventList(events) {
     if (!events || events.length === 0) {

@@ -112,6 +112,66 @@ test('a missing input is reported, not thrown', () => {
     assert.match(result.stderr + result.stdout, /not found/i)
 })
 
+test('malformed JSON input is reported, not thrown', () => {
+    // A truncated or hand-corrupted component-api.json would otherwise die as
+    // an uncaught SyntaxError pointing at this script instead of at the file
+    // the maintainer has to regenerate.
+    withTempDir((dir) => {
+        const input = join(dir, 'corrupt.json')
+        writeFileSync(input, '{"custom_elements": [')
+        const result = run(['--input', input, '--output', join(dir, 'out.md')])
+        assert.notEqual(result.status, 0)
+        // includes rather than a regex: the temp path needs no escaping, and
+        // the message must name the exact file.
+        assert.ok((result.stderr + result.stdout).includes(`Invalid JSON: ${input}`))
+        // An uncaught SyntaxError also exits non-zero and also mentions the
+        // message, so the absence of a stack trace is the load-bearing assert:
+        // it is what separates a reported condition from a crash.
+        assert.doesNotMatch(result.stderr, /at .*regenerate-canonical-api\.js/)
+    })
+})
+
+test('input that does not match the component-api schema is reported, not thrown', () => {
+    // handfish owns this JSON's schema. If its extractor ever changes shape,
+    // the maintainer needs the section that drifted, not a TypeError from
+    // `data.custom_elements.length` deep in rendering.
+    withTempDir((dir) => {
+        const input = join(dir, 'drifted.json')
+        writeFileSync(input, JSON.stringify({ meta: { handfish_version: '0.10' } }))
+        const result = run(['--input', input, '--output', join(dir, 'out.md')])
+        assert.notEqual(result.status, 0)
+        assert.match(result.stderr + result.stdout, /schema/)
+        assert.match(result.stderr + result.stdout, /custom_elements/)
+        assert.doesNotMatch(result.stderr, /at .*regenerate-canonical-api\.js/)
+    })
+})
+
+test('a non-object input is reported, not thrown', () => {
+    withTempDir((dir) => {
+        const input = join(dir, 'scalar.json')
+        writeFileSync(input, '42')
+        const result = run(['--input', input, '--output', join(dir, 'out.md')])
+        assert.notEqual(result.status, 0)
+        assert.match(result.stderr + result.stdout, /top level: expected a JSON object/)
+        assert.doesNotMatch(result.stderr, /at .*regenerate-canonical-api\.js/)
+    })
+})
+
+test('a custom element missing its tag is rejected instead of rendering <undefined>', () => {
+    // A missing `tag` would silently render `### <undefined>` — wrong output
+    // that the determinism and --check tests would both happily bless. The
+    // shape check must fail loudly on the exact element.
+    withTempDir((dir) => {
+        const api = JSON.parse(readFileSync(fixture, 'utf8'))
+        delete api.custom_elements[0].tag
+        const input = join(dir, 'untagged.json')
+        writeFileSync(input, JSON.stringify(api))
+        const result = run(['--input', input, '--output', join(dir, 'out.md')])
+        assert.notEqual(result.status, 0)
+        assert.match(result.stderr + result.stdout, /custom_elements\[0\]\.tag: expected a string/)
+    })
+})
+
 test('a shallow input checkout yields unknown provenance, not the wrong commit', () => {
     // `git log -1 -- <path>` on a shallow clone names the grafted tip as the
     // creator of every file, so provenance would be a plausible lie and the
