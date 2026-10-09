@@ -77,7 +77,19 @@ if (!existsSync(inputPath)) {
     process.exit(1)
 }
 
-const raw = readFileSync(inputPath, 'utf8')
+// The existsSync guard above only proves the path exists. A directory, a
+// file without read permission, or a broken symlink all pass it and then die
+// as an uncaught EISDIR/EACCES stack trace pointing into this script — the
+// same burying that "a missing input is reported" prevents.
+let raw
+try {
+    raw = readFileSync(inputPath, 'utf8')
+} catch (err) {
+    console.error(`Cannot read: ${inputPath}`)
+    console.error(`  ${err.message}`)
+    console.error('Regenerate it with: node scripts/generate-component-api.js (in the handfish repo)')
+    process.exit(1)
+}
 
 // Corrupt input is a reported condition, not a crash: `JSON.parse`'s raw
 // SyntaxError names a line in this script, not the file a maintainer must
@@ -510,7 +522,18 @@ if (checkOnly) {
         console.error('Run: node scripts/regenerate-canonical-api.js')
         process.exit(1)
     }
-    const onDisk = readFileSync(outputPath, 'utf8')
+    // existsSync passed, but a directory or an unreadable file gets here and
+    // would crash with a stack trace naming this script instead of the path
+    // the maintainer must fix — reported, like every other I/O condition.
+    let onDisk
+    try {
+        onDisk = readFileSync(outputPath, 'utf8')
+    } catch (err) {
+        console.error(`Cannot read: ${outputPath}`)
+        console.error(`  ${err.message}`)
+        console.error('Run: node scripts/regenerate-canonical-api.js (after fixing the path)')
+        process.exit(1)
+    }
     if (onDisk !== rendered) {
         console.error(`Stale: ${outputPath}`)
         console.error(summariseDrift(onDisk, rendered))
@@ -521,7 +544,17 @@ if (checkOnly) {
     process.exit(0)
 }
 
-writeFileSync(outputPath, rendered)
+// A missing parent directory or an output path that is itself a directory
+// would otherwise escape as an uncaught ENOENT/EISDIR stack trace. Reported
+// like every other condition: the path, the reason, nothing pointing here.
+try {
+    writeFileSync(outputPath, rendered)
+} catch (err) {
+    console.error(`Cannot write: ${outputPath}`)
+    console.error(`  ${err.message}`)
+    console.error('Create the missing parent directory, or pass --output <path> to write elsewhere.')
+    process.exit(1)
+}
 
 console.log(`✓ Wrote ${outputPath}`)
 console.log(`  ${data.custom_elements.length} custom elements`)

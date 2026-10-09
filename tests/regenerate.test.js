@@ -146,6 +146,51 @@ test('input that does not match the component-api schema is reported, not thrown
     })
 })
 
+test('an unreadable input is reported, not thrown', () => {
+    // existsSync passes for a directory, so `--input <dir>` used to reach
+    // readFileSync and die as an uncaught EISDIR stack trace naming this
+    // script instead of the path the maintainer must fix.
+    withTempDir((dir) => {
+        const result = run(['--input', dir, '--output', join(dir, 'out.md')])
+        assert.notEqual(result.status, 0)
+        assert.ok((result.stderr + result.stdout).includes(`Cannot read: ${dir}`))
+        assert.doesNotMatch(result.stderr, /at .*regenerate-canonical-api\.js/)
+    })
+})
+
+test('an unwritable output is reported, not thrown', () => {
+    // A missing parent directory and an output path that is itself a
+    // directory both used to escape as uncaught ENOENT/EISDIR crashes after
+    // the whole document had already rendered.
+    withTempDir((dir) => {
+        const missingParent = join(dir, 'no-such-dir', 'out.md')
+        const result = run(['--input', fixture, '--output', missingParent])
+        assert.notEqual(result.status, 0)
+        assert.ok((result.stderr + result.stdout).includes(`Cannot write: ${missingParent}`))
+        assert.doesNotMatch(result.stderr, /at .*regenerate-canonical-api\.js/)
+
+        const isDir = join(dir, 'actually-a-dir')
+        mkdirSync(isDir)
+        const into = run(['--input', fixture, '--output', isDir])
+        assert.notEqual(into.status, 0)
+        assert.ok((into.stderr + into.stdout).includes(`Cannot write: ${isDir}`))
+        assert.doesNotMatch(into.stderr, /at .*regenerate-canonical-api\.js/)
+    })
+})
+
+test('--check with an unreadable reference is reported, not thrown', () => {
+    // The --check guard tests existence only; a directory at the output path
+    // passed it and crashed on read with a stack trace naming this script.
+    withTempDir((dir) => {
+        const isDir = join(dir, 'actually-a-dir')
+        mkdirSync(isDir)
+        const result = run(['--input', fixture, '--output', isDir, '--check'])
+        assert.notEqual(result.status, 0)
+        assert.ok((result.stderr + result.stdout).includes(`Cannot read: ${isDir}`))
+        assert.doesNotMatch(result.stderr, /at .*regenerate-canonical-api\.js/)
+    })
+})
+
 test('a non-object input is reported, not thrown', () => {
     withTempDir((dir) => {
         const input = join(dir, 'scalar.json')
