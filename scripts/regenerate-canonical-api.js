@@ -35,8 +35,8 @@
  *   6. npm test — confirms both drift checks are clean
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs'
-import { dirname, join, resolve } from 'path'
+import { readFileSync, writeFileSync, existsSync, realpathSync, statSync } from 'fs'
+import { basename, dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import { execFileSync } from 'child_process'
 
@@ -73,12 +73,41 @@ for (let i = 0; i < args.length; i++) {
     }
 }
 
+// resolve() normalizes path syntax but does not follow symlinks, so it alone
+// cannot tell whether two names name the same file. Canonicalize through the
+// filesystem instead; for a missing leaf, canonicalize the nearest existing
+// ancestor so an output under a symlinked directory still aliases correctly,
+// falling back to the lexical path when nothing along it exists yet.
+function canonicalPath(path) {
+    try {
+        return realpathSync(path)
+    } catch {
+        try {
+            return join(realpathSync(dirname(path)), basename(path))
+        } catch {
+            return resolve(path)
+        }
+    }
+}
+
+// Hard links alias without any symlink: two distinct names, one inode.
+function sameFile(a, b) {
+    if (canonicalPath(a) === canonicalPath(b)) return true
+    try {
+        const left = statSync(a)
+        const right = statSync(b)
+        return left.dev === right.dev && left.ino === right.ino
+    } catch {
+        return false
+    }
+}
+
 // Regenerating in place is the one path where this script destroys data: it
 // has already read the extractor's JSON, and writing the rendered markdown
 // over it would replace the input with its own output. Refused before any
-// I/O, whatever spelling of the same path each flag used.
-if (resolve(inputPath) === resolve(outputPath)) {
-    console.error(`--output must differ from --input: both resolve to ${resolve(inputPath)}`)
+// I/O, whatever spelling — or alias — reaches the same file.
+if (sameFile(inputPath, outputPath)) {
+    console.error(`--output must differ from --input: both resolve to ${canonicalPath(inputPath)}`)
     process.exit(2)
 }
 
@@ -88,9 +117,15 @@ if (resolve(inputPath) === resolve(outputPath)) {
 // checkout instead — or die with "Input not found" where no sibling exists,
 // and where a stale sibling does exist it would silently write reference
 // text from the wrong source. A flag is therefore echoed whenever its value
-// differs from the default, quoted when the path contains whitespace.
+// differs from the default, and non-default paths are shell-quoted so the
+// suggested command survives being pasted into a shell verbatim.
 function shellQuote(path) {
-    return /\s/.test(path) ? JSON.stringify(path) : path
+    // POSIX single quotes, unconditionally: a path needs no whitespace to
+    // carry a metacharacter, and inside single quotes nothing expands — no
+    // $HOME, no backticks, no escapes to get wrong. The only special
+    // character is the quote itself, written by closing the quote,
+    // appending a double-quoted quote, and reopening.
+    return `'${path.split("'").join(`'"'"'`)}'`
 }
 
 function fixCommand() {

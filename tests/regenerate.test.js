@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync, rmSync, copyFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, existsSync, rmSync, copyFileSync, symlinkSync, linkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -201,8 +201,10 @@ test('a reported fix command reproduces a non-default --input/--output', () => {
     withTempDir((dir) => {
         const out = join(dir, 'ref.md')
         assert.equal(run(['--input', fixture, '--output', out]).status, 0)
-        const expectedInput = `--input ${fixture}`
-        const expectedOutput = `--output ${out}`
+        // POSIX single quotes: a pasted command must survive every shell
+        // metacharacter, so non-default paths are always quoted.
+        const expectedInput = `--input '${fixture}'`
+        const expectedOutput = `--output '${out}'`
 
         writeFileSync(out, '# hand-edited, now stale\n')
         const stale = run(['--input', fixture, '--output', out, '--check'])
@@ -224,19 +226,60 @@ test('a reported fix command reproduces a non-default --input/--output', () => {
     })
 })
 
-test('a reported fix command quotes paths containing whitespace', () => {
+test('a reported fix command survives shell metacharacters in the path', () => {
     withTempDir((dir) => {
-        const spaced = join(dir, 'my checkout')
-        mkdirSync(spaced)
-        const input = join(spaced, 'component-api.json')
-        copyFileSync(fixture, input)
-        const out = join(spaced, 'ref.md')
-        const result = run(['--input', input, '--output', out, '--check'])
+        // Whitespace, an apostrophe, and a $ expansion in one path: the
+        // suggestion must survive being pasted into a shell. Inside single
+        // quotes nothing expands; the apostrophe is written by closing the
+        // quote, appending a double-quoted quote, and reopening.
+        const nasty = join(dir, `my file'$home.json`)
+        copyFileSync(fixture, nasty)
+        const result = run(['--input', nasty, '--output', join(dir, 'ref.md'), '--check'])
         assert.notEqual(result.status, 0)
-        // Double-quoted (JSON.stringify): the suggestion must survive being
-        // pasted into a shell when the path contains a space.
-        assert.ok((result.stderr + result.stdout).includes(`--input "${input}"`))
-        assert.ok((result.stderr + result.stdout).includes(`--output "${out}"`))
+        assert.ok(
+            (result.stderr + result.stdout).includes(`--input '${dir}/my file'"'"'$home.json'`),
+            `expected a shell-safe quoted --input, got:\n${result.stderr}${result.stdout}`,
+        )
+        // The apostrophe must not have been left bare anywhere: a bare quote
+        // would terminate the argument and expose $home to expansion.
+        assert.ok((result.stderr + result.stdout).includes(`--output '${join(dir, 'ref.md')}'`))
+    })
+})
+
+test('an --output that aliases --input through the filesystem is refused', () => {
+    // resolve() normalizes syntax but does not follow symlinks, so an output
+    // that is a symlink to the input passes a purely lexical check and the
+    // later write would destroy the input through the alias. Symlinked
+    // directories and hard links alias the same way.
+    withTempDir((dir) => {
+        const input = join(dir, 'api.json')
+        copyFileSync(fixture, input)
+        const before = readFileSync(input, 'utf8')
+
+        const link = join(dir, 'link.json')
+        symlinkSync(input, link)
+        const viaLink = run(['--input', input, '--output', link])
+        assert.notEqual(viaLink.status, 0)
+        assert.match(viaLink.stderr + viaLink.stdout, /--output must differ from --input/)
+
+        const sub = join(dir, 'sub')
+        mkdirSync(sub)
+        const subInput = join(sub, 'api.json')
+        copyFileSync(fixture, subInput)
+        const dirLink = join(dir, 'dirlink')
+        symlinkSync(sub, dirLink)
+        const viaDir = run(['--input', subInput, '--output', join(dirLink, 'api.json')])
+        assert.notEqual(viaDir.status, 0)
+        assert.match(viaDir.stderr + viaDir.stdout, /--output must differ from --input/)
+
+        const hard = join(dir, 'hard.json')
+        linkSync(input, hard)
+        const viaHardLink = run(['--input', input, '--output', hard])
+        assert.notEqual(viaHardLink.status, 0)
+        assert.match(viaHardLink.stderr + viaHardLink.stdout, /--output must differ from --input/)
+
+        assert.equal(readFileSync(input, 'utf8'), before, 'the input JSON must survive intact')
+        assert.equal(readFileSync(subInput, 'utf8'), before, 'the aliased directory input must survive intact')
     })
 })
 
@@ -476,7 +519,7 @@ test('the generator writes the committed reference when given no --output', () =
         // The fix advice must reproduce this check: the non-default input is
         // repeated, while the default output is not re-stated as a flag.
         assert.ok(
-            check.stderr.includes(`Run: node scripts/regenerate-canonical-api.js --input ${fixture}`),
+            check.stderr.includes(`Run: node scripts/regenerate-canonical-api.js --input '${fixture}'`),
             `expected the fix command to repeat only --input, got:\n${check.stderr}`,
         )
         assert.doesNotMatch(check.stderr, /--output/)
