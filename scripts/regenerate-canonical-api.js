@@ -44,8 +44,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = join(__dirname, '..')
 
 const args = process.argv.slice(2)
-let inputPath = resolve(repoRoot, '..', 'handfish', 'docs', 'component-api.json')
-let outputPath = join(repoRoot, 'skills', 'handfish-design', 'references', 'api-canonical.md')
+const defaultInputPath = resolve(repoRoot, '..', 'handfish', 'docs', 'component-api.json')
+const defaultOutputPath = resolve(repoRoot, 'skills', 'handfish-design', 'references', 'api-canonical.md')
+let inputPath = defaultInputPath
+let outputPath = defaultOutputPath
 let checkOnly = false
 
 // Parsed strictly. A tolerated typo would silently fall back to the defaults
@@ -69,6 +71,33 @@ for (let i = 0; i < args.length; i++) {
         console.error('Usage: regenerate-canonical-api.js [--input <json>] [--output <md>] [--check]')
         process.exit(2)
     }
+}
+
+// Regenerating in place is the one path where this script destroys data: it
+// has already read the extractor's JSON, and writing the rendered markdown
+// over it would replace the input with its own output. Refused before any
+// I/O, whatever spelling of the same path each flag used.
+if (resolve(inputPath) === resolve(outputPath)) {
+    console.error(`--output must differ from --input: both resolve to ${resolve(inputPath)}`)
+    process.exit(2)
+}
+
+// The remediation messages below name the command that fixes the problem.
+// That command must reproduce the invocation that failed: with a custom
+// --input, the bare default command would regenerate from the sibling
+// checkout instead — or die with "Input not found" where no sibling exists,
+// and where a stale sibling does exist it would silently write reference
+// text from the wrong source. A flag is therefore echoed whenever its value
+// differs from the default, quoted when the path contains whitespace.
+function shellQuote(path) {
+    return /\s/.test(path) ? JSON.stringify(path) : path
+}
+
+function fixCommand() {
+    let command = 'node scripts/regenerate-canonical-api.js'
+    if (resolve(inputPath) !== defaultInputPath) command += ` --input ${shellQuote(inputPath)}`
+    if (resolve(outputPath) !== defaultOutputPath) command += ` --output ${shellQuote(outputPath)}`
+    return command
 }
 
 if (!existsSync(inputPath)) {
@@ -519,7 +548,7 @@ const rendered = out.join('\n') + '\n'
 if (checkOnly) {
     if (!existsSync(outputPath)) {
         console.error(`Missing: ${outputPath}`)
-        console.error('Run: node scripts/regenerate-canonical-api.js')
+        console.error(`Run: ${fixCommand()}`)
         process.exit(1)
     }
     // existsSync passed, but a directory or an unreadable file gets here and
@@ -531,13 +560,13 @@ if (checkOnly) {
     } catch (err) {
         console.error(`Cannot read: ${outputPath}`)
         console.error(`  ${err.message}`)
-        console.error('Run: node scripts/regenerate-canonical-api.js (after fixing the path)')
+        console.error(`Run: ${fixCommand()} (after fixing the path)`)
         process.exit(1)
     }
     if (onDisk !== rendered) {
         console.error(`Stale: ${outputPath}`)
         console.error(summariseDrift(onDisk, rendered))
-        console.error('Run: node scripts/regenerate-canonical-api.js')
+        console.error(`Run: ${fixCommand()}`)
         process.exit(1)
     }
     console.log(`✓ Up to date: ${outputPath}`)

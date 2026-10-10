@@ -191,6 +191,76 @@ test('--check with an unreadable reference is reported, not thrown', () => {
     })
 })
 
+test('a reported fix command reproduces a non-default --input/--output', () => {
+    // The drift alarm names the command that fixes the drift. With a custom
+    // --input/--output, a bare "node scripts/regenerate-canonical-api.js"
+    // would regenerate from the default sibling checkout instead — or fail
+    // with "Input not found" where no sibling exists. Either way the advice
+    // does not reproduce the check that just failed, and the worse case
+    // silently writes reference text from a different source.
+    withTempDir((dir) => {
+        const out = join(dir, 'ref.md')
+        assert.equal(run(['--input', fixture, '--output', out]).status, 0)
+        const expectedInput = `--input ${fixture}`
+        const expectedOutput = `--output ${out}`
+
+        writeFileSync(out, '# hand-edited, now stale\n')
+        const stale = run(['--input', fixture, '--output', out, '--check'])
+        assert.notEqual(stale.status, 0)
+        assert.ok((stale.stderr + stale.stdout).includes(expectedInput), 'stale advice must repeat --input')
+        assert.ok((stale.stderr + stale.stdout).includes(expectedOutput), 'stale advice must repeat --output')
+
+        rmSync(out)
+        const missing = run(['--input', fixture, '--output', out, '--check'])
+        assert.notEqual(missing.status, 0)
+        assert.ok((missing.stderr + missing.stdout).includes(expectedInput), 'missing-reference advice must repeat --input')
+        assert.ok((missing.stderr + missing.stdout).includes(expectedOutput), 'missing-reference advice must repeat --output')
+
+        mkdirSync(out)
+        const unreadable = run(['--input', fixture, '--output', out, '--check'])
+        assert.notEqual(unreadable.status, 0)
+        assert.ok((unreadable.stderr + unreadable.stdout).includes(expectedInput), 'unreadable-reference advice must repeat --input')
+        assert.ok((unreadable.stderr + unreadable.stdout).includes(expectedOutput), 'unreadable-reference advice must repeat --output')
+    })
+})
+
+test('a reported fix command quotes paths containing whitespace', () => {
+    withTempDir((dir) => {
+        const spaced = join(dir, 'my checkout')
+        mkdirSync(spaced)
+        const input = join(spaced, 'component-api.json')
+        copyFileSync(fixture, input)
+        const out = join(spaced, 'ref.md')
+        const result = run(['--input', input, '--output', out, '--check'])
+        assert.notEqual(result.status, 0)
+        // Double-quoted (JSON.stringify): the suggestion must survive being
+        // pasted into a shell when the path contains a space.
+        assert.ok((result.stderr + result.stdout).includes(`--input "${input}"`))
+        assert.ok((result.stderr + result.stdout).includes(`--output "${out}"`))
+    })
+})
+
+test('an --output equal to --input is refused before anything is written', () => {
+    // The one path where this script destroys data: reading the extractor's
+    // JSON and then overwriting it with rendered markdown. Both resolve to the
+    // same file whether or not the same spelling was used twice.
+    withTempDir((dir) => {
+        const input = join(dir, 'api.json')
+        copyFileSync(fixture, input)
+        const before = readFileSync(input, 'utf8')
+
+        const direct = run(['--input', input, '--output', input])
+        assert.notEqual(direct.status, 0)
+        assert.match(direct.stderr + direct.stdout, /--output must differ from --input/)
+
+        const alias = join(dir, '.', 'api.json')
+        const indirect = run(['--input', input, '--output', alias])
+        assert.notEqual(indirect.status, 0)
+
+        assert.equal(readFileSync(input, 'utf8'), before, 'the input JSON must survive intact')
+    })
+})
+
 test('a non-object input is reported, not thrown', () => {
     withTempDir((dir) => {
         const input = join(dir, 'scalar.json')
@@ -403,5 +473,12 @@ test('the generator writes the committed reference when given no --output', () =
             check.stderr, new RegExp(`Stale: ${committedReference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'),
             'a run with no --output must target the committed reference',
         )
+        // The fix advice must reproduce this check: the non-default input is
+        // repeated, while the default output is not re-stated as a flag.
+        assert.ok(
+            check.stderr.includes(`Run: node scripts/regenerate-canonical-api.js --input ${fixture}`),
+            `expected the fix command to repeat only --input, got:\n${check.stderr}`,
+        )
+        assert.doesNotMatch(check.stderr, /--output/)
     })
 })
